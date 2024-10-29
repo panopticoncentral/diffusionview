@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "DiffusionView (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "DiffusionView (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
