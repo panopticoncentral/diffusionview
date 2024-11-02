@@ -6,6 +6,7 @@
     xmlns:local="using:DiffusionView"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     mc:Ignorable="d">
 
     <Grid>
@@ -14,7 +15,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AppTitleBar" Height="48">
+        <Grid x:Name="AppTitleBar" Height="48" Grid.Row="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="LeftPaddingColumn" Width="0"/>
                 <ColumnDefinition x:Name="IconColumn" Width="Auto"/>
@@ -48,15 +49,263 @@
                             MaxWidth="600"/>
         </Grid>
 
-        <Grid Grid.Row="1">
-            <StackPanel HorizontalAlignment="Center" 
-                        VerticalAlignment="Center">
-                <TextBlock Text="Welcome to WinUI 3!"
-                           FontSize="24"
-                           Margin="0,0,0,20"/>
-                <Button x:Name="myButton"
-                        Content="Click Me!"/>
-            </StackPanel>
+        <Grid x:Name="AppContent" Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="*" MinWidth="400"/>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="320" MinWidth="200" MaxWidth="600"/>
+            </Grid.ColumnDefinitions>
+
+            <NavigationView x:Name="NavView"
+                        Grid.Column="0"
+                        IsSettingsVisible="False"
+                        PaneDisplayMode="Left"
+                        IsPaneOpen="True"
+                        OpenPaneLength="260"
+                        ItemInvoked="NavView_ItemInvoked">
+
+                <NavigationView.MenuItems>
+                    <NavigationViewItem Icon="Folder" Content="All Photos" />
+                    <NavigationViewItemHeader Content="Folders" />
+                    <!-- Folders will be populated here -->
+                </NavigationView.MenuItems>
+
+                <NavigationView.FooterMenuItems>
+                    <NavigationViewItem x:Name="AddFolderButton" Icon="Add" Content="Add Folder" Tapped="AddFolderButton_Tapped"/>
+                </NavigationView.FooterMenuItems>
+            </NavigationView>
+
+            <Grid Grid.Column="1" Margin="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <CommandBar Grid.Row="0" DefaultLabelPosition="Right" Background="Transparent">
+                    <AppBarButton Icon="ViewAll" Label="Grid View" Click="ViewMode_Click" Tag="Grid" />
+                    <AppBarButton Icon="List" Label="List View" Click="ViewMode_Click" Tag="List" />
+                    <AppBarSeparator />
+
+                    <AppBarButton Icon="Sort" Label="Sort By">
+                        <AppBarButton.Flyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="Name" Click="SortBy_Click" Tag="Name" />
+                                <MenuFlyoutItem Text="Date Taken" Click="SortBy_Click" Tag="Date" />
+                                <MenuFlyoutItem Text="Size" Click="SortBy_Click" Tag="Size" />
+                                <MenuFlyoutSeparator />
+                                <ToggleMenuFlyoutItem Text="Ascending" Click="SortDirection_Click" />
+                            </MenuFlyout>
+                        </AppBarButton.Flyout>
+                    </AppBarButton>
+
+                    <AppBarButton Icon="Filter" Label="Filter">
+                        <AppBarButton.Flyout>
+                            <Flyout>
+                                <StackPanel Spacing="8">
+                                    <TextBox x:Name="SearchBox" 
+                                         PlaceholderText="Search files..."
+                                         TextChanged="SearchBox_TextChanged"/>
+
+                                    <ComboBox Header="File Type" 
+                                          SelectionChanged="FileType_SelectionChanged">
+                                        <ComboBoxItem Content="All" />
+                                        <ComboBoxItem Content="JPG" />
+                                        <ComboBoxItem Content="PNG" />
+                                        <ComboBoxItem Content="GIF" />
+                                    </ComboBox>
+
+                                    <DatePicker Header="From Date"
+                                           DateChanged="DateFilter_Changed"/>
+                                    <DatePicker Header="To Date"
+                                           DateChanged="DateFilter_Changed"/>
+                                </StackPanel>
+                            </Flyout>
+                        </AppBarButton.Flyout>
+                    </AppBarButton>
+                </CommandBar>
+
+                <ScrollViewer Grid.Row="1" 
+                         x:Name="PhotoScrollViewer"
+                         ViewChanged="ScrollViewer_ViewChanged">
+                    <ItemsRepeater x:Name="PhotoRepeater">
+                        <ItemsRepeater.Layout>
+                            <UniformGridLayout MinItemWidth="200"
+                                         MinItemHeight="200"
+                                         MinRowSpacing="4"
+                                         MinColumnSpacing="4" />
+                        </ItemsRepeater.Layout>
+
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate>
+                                <Button Background="Transparent" 
+                                        BorderThickness="0"
+                                        Padding="0"
+                                        Click="PhotoItem_Click">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Grid Width="200" Height="200" Margin="4">
+                                                <VisualStateManager.VisualStateGroups>
+                                                    <VisualStateGroup x:Name="SelectionStates">
+                                                        <VisualState x:Name="Selected">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="SelectionBorder.Visibility" Value="Visible"/>
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                        <VisualState x:Name="Unselected">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="SelectionBorder.Visibility" Value="Collapsed"/>
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                    </VisualStateGroup>
+                                                    <VisualStateGroup x:Name="CommonStates">
+                                                        <VisualState x:Name="Normal" />
+                                                        <VisualState x:Name="PointerOver">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="HoverBorder.Opacity" Value="1"/>
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                        <VisualState x:Name="Pressed">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="HoverBorder.Opacity" Value="0.8"/>
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                    </VisualStateGroup>
+                                                </VisualStateManager.VisualStateGroups>
+
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="*" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+
+                                                <!-- Image with Thumbnail -->
+                                                <Image Grid.Row="0"
+                               Stretch="UniformToFill"
+                               Source="{Binding Thumbnail}"/>
+
+                                                <!-- Hover Border -->
+                                                <Border x:Name="HoverBorder"
+                                Grid.Row="0"
+                                Background="{ThemeResource SystemBaseLowColor}"
+                                Opacity="0"/>
+
+                                                <!-- Selection Border -->
+                                                <Border x:Name="SelectionBorder"
+                                Grid.Row="0"
+                                BorderBrush="{ThemeResource SystemAccentColor}"
+                                BorderThickness="3"
+                                Visibility="Collapsed"/>
+
+                                                <!-- File Name -->
+                                                <Grid Grid.Row="1" 
+                              Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                                                    <TextBlock Text="{Binding FileName}" 
+                                     Margin="8,4" 
+                                     TextTrimming="CharacterEllipsis"/>
+                                                </Grid>
+
+                                                <!-- Loading State -->
+                                                <ProgressRing IsActive="{Binding IsLoading}" 
+                                    Width="32" 
+                                    Height="32"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"/>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </ScrollViewer>
+
+                <ProgressRing x:Name="LoadingMoreRing"
+                         Grid.Row="1"
+                         VerticalAlignment="Bottom"
+                         Margin="0,0,0,16"
+                         Width="20" Height="20" />
+            </Grid>
+
+            <controls:GridSplitter Grid.Column="2"
+                      Width="4"
+                      Background="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+                      Opacity="0.5"
+                      ResizeBehavior="PreviousAndNext"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Stretch">
+                <controls:GridSplitter.Resources>
+                    <ResourceDictionary>
+                        <SolidColorBrush x:Key="GridSplitterBackgroundPointerOver" 
+                                    Color="{ThemeResource SystemAccentColor}"/>
+                        <SolidColorBrush x:Key="GridSplitterBackgroundPressed" 
+                                    Color="{ThemeResource SystemAccentColor}"/>
+                    </ResourceDictionary>
+                </controls:GridSplitter.Resources>
+            </controls:GridSplitter>
+
+            <Grid Grid.Column="3" Margin="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Image Grid.Row="0" 
+                   x:Name="PreviewImage"
+                   Stretch="Uniform" />
+
+                <StackPanel Grid.Row="1" Spacing="8" Margin="0,12,0,0">
+                    <TextBlock Text="Image Details" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                    <Grid ColumnSpacing="12" RowSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="File name:" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="FileNameText" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Date taken:" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="DateTakenText" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Size:" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="SizeText" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Resolution:" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ResolutionText" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Location:" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" x:Name="LocationText" />
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+                        <Button Click="OpenButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE8A7;"/>
+                                <TextBlock Text="Open" />
+                            </StackPanel>
+                        </Button>
+                        <Button Click="ShareButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE8C8;"/>
+                                <TextBlock Text="Share" />
+                            </StackPanel>
+                        </Button>
+                        <Button Click="DeleteButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE74D;"/>
+                                <TextBlock Text="Delete" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
         </Grid>
     </Grid>
 </Window>
