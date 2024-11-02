@@ -2,11 +2,9 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Concurrent;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -17,7 +15,6 @@ using Windows.Storage.Search;
 using Windows.Storage.Pickers;
 using Windows.System;
 using Windows.ApplicationModel.DataTransfer;
-using Windows.Devices.Geolocation;
 
 namespace DiffusionView
 {
@@ -131,6 +128,16 @@ namespace DiffusionView
                 _currentFolderPath = folder.Path;
                 await LoadPhotosFromFolder(folder.Path);
             }
+        }
+
+        private void NavView_PaneClosing(NavigationView sender, NavigationViewPaneClosingEventArgs args)
+        {
+            NavColumn.Width = new GridLength(sender.CompactPaneLength);
+        }
+
+        private void NavView_PaneOpening(NavigationView sender, object args)
+        {
+            NavColumn.Width = new GridLength(sender.OpenPaneLength);
         }
 
         private async Task LoadPhotosFromFolder(string folderPath)
