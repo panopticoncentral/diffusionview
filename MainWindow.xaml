@@ -11,8 +11,8 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition x:Name="TitleBarRow" Height="Auto"/>
+            <RowDefinition x:Name="NavigationViewRow" Height="*"/>
         </Grid.RowDefinitions>
 
         <Grid x:Name="AppTitleBar" Height="48" Grid.Row="0">
@@ -49,258 +49,172 @@
                             MaxWidth="600"/>
         </Grid>
 
-        <Grid x:Name="AppContent" Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="NavColumn" Width="Auto" />
-                <ColumnDefinition Width="*" MinWidth="400"/>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="320" MinWidth="200" MaxWidth="600"/>
-            </Grid.ColumnDefinitions>
+        <NavigationView x:Name="NavView" 
+                        Grid.Row="1" 
+                        IsSettingsVisible="False" 
+                        PaneDisplayMode="Left" 
+                        IsPaneOpen="True" 
+                        ItemInvoked="NavView_ItemInvoked">
 
-            <NavigationView x:Name="NavView" Grid.Column="0" IsSettingsVisible="False" PaneDisplayMode="Left" IsPaneOpen="True" PaneClosing="NavView_PaneClosing" PaneOpening="NavView_PaneOpening" ItemInvoked="NavView_ItemInvoked">
-                <NavigationView.MenuItems>
-                    <NavigationViewItem Icon="Folder" Content="All Photos" />
-                    <NavigationViewItemHeader Content="Folders" />
-                </NavigationView.MenuItems>
+            <NavigationView.MenuItems>
+                <NavigationViewItem x:Name="AllPhotosButton" 
+                                    Icon="Folder" 
+                                    Content="All Photos" />
+                <NavigationViewItemHeader Content="Folders" />
+            </NavigationView.MenuItems>
 
-                <NavigationView.FooterMenuItems>
-                    <NavigationViewItem x:Name="AddFolderButton" Icon="Add" Content="Add Folder" Tapped="AddFolderButton_Tapped"/>
-                </NavigationView.FooterMenuItems>
-            </NavigationView>
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem x:Name="AddFolderButton" 
+                                    Icon="Add" 
+                                    Content="Add Folder"/>
+            </NavigationView.FooterMenuItems>
 
-            <Grid Grid.Column="1" Margin="12" Background="{ThemeResource CardStrokeColorDefaultBrush}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+            <Grid x:Name="AppContent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="GalleryColumn" Width="*" MinWidth="400"/>
+                    <ColumnDefinition x:Name="SplitterColumn" Width="Auto" />
+                    <ColumnDefinition x:Name="PhotoColumn" Width="320" MinWidth="200"/>
+                </Grid.ColumnDefinitions>
 
-                <Border Grid.RowSpan="2" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                <ScrollViewer x:Name="PhotoScrollViewer"
+                              Grid.Row="1"
+                              Padding="8,0,8,8"
+                              ViewChanged="ScrollViewer_ViewChanged"
+                              Background="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <ItemsRepeater x:Name="PhotoRepeater">
+                        <ItemsRepeater.Layout>
+                            <controls:StaggeredLayout ColumnSpacing="4" RowSpacing="4" DesiredColumnWidth="200"/>
+                        </ItemsRepeater.Layout>
 
-                        <CommandBar Grid.Row="0" DefaultLabelPosition="Right" Background="Transparent" Margin="8,8,8,0">
-                            <AppBarButton Icon="ViewAll" Label="Grid View" Click="ViewMode_Click" Tag="Grid" />
-                            <AppBarButton Icon="List" Label="List View" Click="ViewMode_Click" Tag="List" />
-                            <AppBarSeparator />
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate>
+                                <Button Background="Transparent" BorderThickness="0" Padding="0" Click="PhotoItem_Click">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Grid Height="200" Margin="4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
 
-                            <AppBarButton Icon="Sort" Label="Sort By">
-                                <AppBarButton.Flyout>
-                                    <MenuFlyout>
-                                        <MenuFlyoutItem Text="Name" Click="SortBy_Click" Tag="Name" />
-                                        <MenuFlyoutItem Text="Date Taken" Click="SortBy_Click" Tag="Date" />
-                                        <MenuFlyoutItem Text="Size" Click="SortBy_Click" Tag="Size" />
-                                        <MenuFlyoutSeparator />
-                                        <ToggleMenuFlyoutItem Text="Ascending" Click="SortDirection_Click" />
-                                    </MenuFlyout>
-                                </AppBarButton.Flyout>
-                            </AppBarButton>
+                                                <VisualStateManager.VisualStateGroups>
+                                                    <VisualStateGroup x:Name="SelectionStates">
+                                                        <VisualState x:Name="Selected">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="SelectionBorder.Visibility" Value="Visible"/>
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                        <VisualState x:Name="Unselected">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="SelectionBorder.Visibility" Value="Collapsed"/>
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                    </VisualStateGroup>
+                                                    <VisualStateGroup x:Name="CommonStates">
+                                                        <VisualState x:Name="Normal" />
+                                                        <VisualState x:Name="PointerOver">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="HoverBorder.Opacity" Value="1"/>
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                        <VisualState x:Name="Pressed">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="HoverBorder.Opacity" Value="0.8"/>
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                    </VisualStateGroup>
+                                                </VisualStateManager.VisualStateGroups>
 
-                            <AppBarButton Icon="Filter" Label="Filter">
-                                <AppBarButton.Flyout>
-                                    <Flyout>
-                                        <StackPanel Spacing="8">
-                                            <TextBox x:Name="SearchBox" 
-                                         PlaceholderText="Search files..."
-                                         TextChanged="SearchBox_TextChanged"/>
-
-                                            <ComboBox Header="File Type" 
-                                          SelectionChanged="FileType_SelectionChanged">
-                                                <ComboBoxItem Content="All" />
-                                                <ComboBoxItem Content="JPG" />
-                                                <ComboBoxItem Content="PNG" />
-                                                <ComboBoxItem Content="GIF" />
-                                            </ComboBox>
-
-                                            <DatePicker Header="From Date"
-                                           DateChanged="DateFilter_Changed"/>
-                                            <DatePicker Header="To Date"
-                                           DateChanged="DateFilter_Changed"/>
-                                        </StackPanel>
-                                    </Flyout>
-                                </AppBarButton.Flyout>
-                            </AppBarButton>
-                        </CommandBar>
-
-                        <ScrollViewer Grid.Row="1" x:Name="PhotoScrollViewer" Padding="8,0,8,8" ViewChanged="ScrollViewer_ViewChanged">
-                            <ItemsRepeater x:Name="PhotoRepeater">
-                                <ItemsRepeater.Layout>
-                                    <UniformGridLayout MinItemWidth="200" MinItemHeight="200" MinRowSpacing="4" MinColumnSpacing="4" />
-                                </ItemsRepeater.Layout>
-
-                                <ItemsRepeater.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Background="Transparent" 
-                                        BorderThickness="0"
-                                        Padding="0"
-                                        Click="PhotoItem_Click">
-                                            <Button.Template>
-                                                <ControlTemplate TargetType="Button">
-                                                    <Grid Width="200" Height="200" Margin="4">
-                                                        <VisualStateManager.VisualStateGroups>
-                                                            <VisualStateGroup x:Name="SelectionStates">
-                                                                <VisualState x:Name="Selected">
-                                                                    <VisualState.Setters>
-                                                                        <Setter Target="SelectionBorder.Visibility" Value="Visible"/>
-                                                                    </VisualState.Setters>
-                                                                </VisualState>
-                                                                <VisualState x:Name="Unselected">
-                                                                    <VisualState.Setters>
-                                                                        <Setter Target="SelectionBorder.Visibility" Value="Collapsed"/>
-                                                                    </VisualState.Setters>
-                                                                </VisualState>
-                                                            </VisualStateGroup>
-                                                            <VisualStateGroup x:Name="CommonStates">
-                                                                <VisualState x:Name="Normal" />
-                                                                <VisualState x:Name="PointerOver">
-                                                                    <VisualState.Setters>
-                                                                        <Setter Target="HoverBorder.Opacity" Value="1"/>
-                                                                    </VisualState.Setters>
-                                                                </VisualState>
-                                                                <VisualState x:Name="Pressed">
-                                                                    <VisualState.Setters>
-                                                                        <Setter Target="HoverBorder.Opacity" Value="0.8"/>
-                                                                    </VisualState.Setters>
-                                                                </VisualState>
-                                                            </VisualStateGroup>
-                                                        </VisualStateManager.VisualStateGroups>
-
-                                                        <Grid.RowDefinitions>
-                                                            <RowDefinition Height="*" />
-                                                            <RowDefinition Height="Auto" />
-                                                        </Grid.RowDefinitions>
-
-                                                        <!-- Image with Thumbnail -->
-                                                        <Image Grid.Row="0"
-                               Stretch="UniformToFill"
-                               Source="{Binding Thumbnail}"/>
-
-                                                        <!-- Hover Border -->
-                                                        <Border x:Name="HoverBorder"
-                                Grid.Row="0"
-                                Background="{ThemeResource SystemBaseLowColor}"
-                                Opacity="0"/>
-
-                                                        <!-- Selection Border -->
-                                                        <Border x:Name="SelectionBorder"
-                                Grid.Row="0"
-                                BorderBrush="{ThemeResource SystemAccentColor}"
-                                BorderThickness="3"
-                                Visibility="Collapsed"/>
-
-                                                        <!-- File Name -->
-                                                        <Grid Grid.Row="1" 
-                              Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
-                                                            <TextBlock Text="{Binding FileName}" 
-                                     Margin="8,4" 
-                                     TextTrimming="CharacterEllipsis"/>
-                                                        </Grid>
-
-                                                        <!-- Loading State -->
-                                                        <ProgressRing IsActive="{Binding IsLoading}" 
-                                    Width="32" 
-                                    Height="32"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"/>
+                                                <Viewbox Height="200" StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                                                    <Grid>
+                                                        <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
+                                                        <Border x:Name="HoverBorder" Background="{ThemeResource SystemBaseLowColor}" Opacity="0"/>
+                                                        <Border x:Name="SelectionBorder" BorderBrush="{ThemeResource SystemAccentColor}" BorderThickness="3" Visibility="Collapsed"/>
                                                     </Grid>
-                                                </ControlTemplate>
-                                            </Button.Template>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsRepeater.ItemTemplate>
-                            </ItemsRepeater>
-                        </ScrollViewer>
-                    </Grid>
-                </Border>
-                
-                <ProgressRing x:Name="LoadingMoreRing"
-                         Grid.Row="1"
-                         VerticalAlignment="Bottom"
-                         Margin="0,0,0,16"
-                         Width="20" Height="20" />
-            </Grid>
+                                                </Viewbox>
 
-            <controls:GridSplitter Grid.Column="2"
-                      Background="{ThemeResource SystemControlForegroundChromeMediumBrush}"
-                      Opacity="0.5"
-                      ResizeBehavior="PreviousAndNext"
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Stretch">
-                <controls:GridSplitter.Resources>
-                    <ResourceDictionary>
-                        <SolidColorBrush x:Key="GridSplitterBackgroundPointerOver" 
-                                    Color="{ThemeResource SystemAccentColor}"/>
-                        <SolidColorBrush x:Key="GridSplitterBackgroundPressed" 
-                                    Color="{ThemeResource SystemAccentColor}"/>
-                    </ResourceDictionary>
-                </controls:GridSplitter.Resources>
-            </controls:GridSplitter>
+                                                <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Bottom" Margin="8,4" Padding="4"/>
 
-            <Grid Grid.Column="3" Margin="12">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+                                                <ProgressRing IsActive="{Binding IsLoading}" Width="32" Height="32" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </ScrollViewer>
 
-                <Image Grid.Row="0" 
-                   x:Name="PreviewImage"
-                   Stretch="Uniform" />
+                <controls:GridSplitter x:Name="GallerySplitter"
+                                       Grid.Column="1"
+                                       Background="{ThemeResource SystemControlForegroundChromeMediumBrush}"
+                                       Opacity="0.5"
+                                       ResizeBehavior="PreviousAndNext"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Stretch">
+                    <controls:GridSplitter.Resources>
+                        <ResourceDictionary>
+                            <SolidColorBrush x:Key="GridSplitterBackgroundPointerOver" Color="{ThemeResource SystemAccentColor}"/>
+                            <SolidColorBrush x:Key="GridSplitterBackgroundPressed" Color="{ThemeResource SystemAccentColor}"/>
+                        </ResourceDictionary>
+                    </controls:GridSplitter.Resources>
+                </controls:GridSplitter>
 
-                <StackPanel Grid.Row="1" Spacing="8" Margin="0,12,0,0">
-                    <TextBlock Text="Image Details" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                    <Grid ColumnSpacing="12" RowSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                <Grid Grid.Column="2" Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="File name:" />
-                        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="FileNameText" />
+                    <Image Grid.Row="0" x:Name="PreviewImage" Stretch="Uniform" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Date taken:" />
-                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="DateTakenText" />
+                    <StackPanel Grid.Row="1" Spacing="8" Margin="0,12,0,0">
+                        <TextBlock Text="Image Details" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <Grid ColumnSpacing="12" RowSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Size:" />
-                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="SizeText" />
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="File name:" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="FileNameText" />
 
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Resolution:" />
-                        <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ResolutionText" />
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Date taken:" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="DateTakenText" />
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Location:" />
-                        <TextBlock Grid.Row="4" Grid.Column="1" x:Name="LocationText" />
-                    </Grid>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Size:" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="SizeText" />
 
-                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
-                        <Button Click="OpenButton_Click">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE8A7;"/>
-                                <TextBlock Text="Open" />
-                            </StackPanel>
-                        </Button>
-                        <Button Click="ShareButton_Click">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE8C8;"/>
-                                <TextBlock Text="Share" />
-                            </StackPanel>
-                        </Button>
-                        <Button Click="DeleteButton_Click">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE74D;"/>
-                                <TextBlock Text="Delete" />
-                            </StackPanel>
-                        </Button>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Resolution:" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ResolutionText" />
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Location:" />
+                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="LocationText" />
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+                            <Button Click="OpenButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE8A7;"/>
+                                    <TextBlock Text="Open" />
+                                </StackPanel>
+                            </Button>
+                            <Button Click="DeleteButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE74D;"/>
+                                    <TextBlock Text="Delete" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
+                </Grid>
             </Grid>
-        </Grid>
+        </NavigationView>
     </Grid>
 </Window>

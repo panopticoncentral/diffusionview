@@ -14,13 +14,13 @@ using Windows.Storage.FileProperties;
 using Windows.Storage.Search;
 using Windows.Storage.Pickers;
 using Windows.System;
-using Windows.ApplicationModel.DataTransfer;
+using WinRT.Interop;
 
 namespace DiffusionView
 {
     public sealed partial class MainWindow : Window
     {
-        private readonly PhotoCollection _photoCollection;
+        private readonly ObservableCollection<PhotoItem> _photoCollection;
         private readonly ThumbnailCache _thumbnailCache;
         private readonly MetadataCache _metadataCache;
         private readonly ImageLoader _imageLoader;
@@ -30,12 +30,6 @@ namespace DiffusionView
         private const int PAGE_SIZE = 50;
         private bool _isLoading;
         private string _currentFolderPath;
-        private PhotoSortOption _currentSortOption = PhotoSortOption.Name;
-        private bool _sortAscending = true;
-        private string _searchFilter = "";
-        private string _fileTypeFilter = "";
-        private DateTime? _fromDate;
-        private DateTime? _toDate;
 
         private PhotoItem _selectedItem;
         public PhotoItem SelectedItem
@@ -45,7 +39,6 @@ namespace DiffusionView
             {
                 if (_selectedItem != value)
                 {
-                    // Deselect old item
                     if (_selectedItem != null)
                     {
                         _selectedItem.IsSelected = false;
@@ -53,7 +46,6 @@ namespace DiffusionView
 
                     _selectedItem = value;
 
-                    // Select new item
                     if (_selectedItem != null)
                     {
                         _selectedItem.IsSelected = true;
@@ -71,25 +63,44 @@ namespace DiffusionView
             _thumbnailCache = new ThumbnailCache();
             _metadataCache = new MetadataCache();
             _imageLoader = new ImageLoader();
-            _photoCollection = new PhotoCollection();
+            _photoCollection = new ObservableCollection<PhotoItem>();
 
             PhotoRepeater.ItemsSource = _photoCollection;
-            SetupEventHandlers();
-        }
-
-        private void SetupEventHandlers()
-        {
-            NavView.ItemInvoked += NavView_ItemInvoked;
-            AddFolderButton.Tapped += AddFolderButton_Tapped;
         }
 
         private async void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
         {
-            if (args.InvokedItemContainer is NavigationViewItem item)
+            if (args.InvokedItemContainer is not NavigationViewItem item)
             {
-                if (item == AddFolderButton)
-                    return;
+                return;
+            }
 
+            if (item == AddFolderButton)
+            {
+                var folderPicker = new FolderPicker();
+                folderPicker.FileTypeFilter.Add("*");
+
+                var hwnd = WindowNative.GetWindowHandle(this);
+                InitializeWithWindow.Initialize(folderPicker, hwnd);
+
+                StorageFolder folder = await folderPicker.PickSingleFolderAsync();
+                if (folder != null)
+                {
+                    var folderItem = new FolderItem
+                    {
+                        Name = folder.Name,
+                        FolderPath = folder.Path
+                    };
+
+                    AddFolderToNavigation(folderItem);
+                    _currentFolderPath = folder.Path;
+                    await LoadPhotosFromFolder(folder.Path);
+                }
+
+                return;
+            }
+            else
+            {
                 var folderName = item.Content.ToString();
                 var folder = GetFolderByName(folderName);
                 if (folder != null)
@@ -99,45 +110,13 @@ namespace DiffusionView
                 }
             }
         }
-        
+
         private void PhotoItem_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.DataContext is PhotoItem photo)
             {
                 SelectedItem = photo;
             }
-        }
-
-        private async void AddFolderButton_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
-        {
-            var folderPicker = new FolderPicker();
-            folderPicker.FileTypeFilter.Add("*");
-
-            WinRT.Interop.InitializeWithWindow.Initialize(folderPicker, WinRT.Interop.WindowNative.GetWindowHandle(this));
-
-            StorageFolder folder = await folderPicker.PickSingleFolderAsync();
-            if (folder != null)
-            {
-                var folderItem = new FolderItem
-                {
-                    Name = folder.Name,
-                    FolderPath = folder.Path
-                };
-
-                AddFolderToNavigation(folderItem);
-                _currentFolderPath = folder.Path;
-                await LoadPhotosFromFolder(folder.Path);
-            }
-        }
-
-        private void NavView_PaneClosing(NavigationView sender, NavigationViewPaneClosingEventArgs args)
-        {
-            NavColumn.Width = new GridLength(sender.CompactPaneLength);
-        }
-
-        private void NavView_PaneOpening(NavigationView sender, object args)
-        {
-            NavColumn.Width = new GridLength(sender.OpenPaneLength);
         }
 
         private async Task LoadPhotosFromFolder(string folderPath)
@@ -157,51 +136,33 @@ namespace DiffusionView
                     IndexerOption = IndexerOption.UseIndexerWhenAvailable
                 };
 
-                // Set up the property prefetch for better performance
                 queryOptions.SetPropertyPrefetch(PropertyPrefetchOptions.BasicProperties |
                                                PropertyPrefetchOptions.ImageProperties,
-                                               new string[] { "System.GPS.Latitude", "System.GPS.Longitude" });
+                                               ["System.GPS.Latitude", "System.GPS.Longitude"]);
 
-                // Add file type filters if specified
-                if (!string.IsNullOrEmpty(_fileTypeFilter))
-                {
-                    queryOptions.FileTypeFilter.Add(_fileTypeFilter);
-                }
-                else
-                {
-                    // Default image file types
-                    queryOptions.FileTypeFilter.Add(".jpg");
-                    queryOptions.FileTypeFilter.Add(".jpeg");
-                    queryOptions.FileTypeFilter.Add(".png");
-                    queryOptions.FileTypeFilter.Add(".gif");
-                    queryOptions.FileTypeFilter.Add(".bmp");
-                }
+                queryOptions.FileTypeFilter.Add(".jpg");
+                queryOptions.FileTypeFilter.Add(".jpeg");
+                queryOptions.FileTypeFilter.Add(".png");
+                queryOptions.FileTypeFilter.Add(".gif");
+                queryOptions.FileTypeFilter.Add(".bmp");
 
-                // Start the loading indicator
-                LoadingMoreRing.IsActive = true;
                 _isLoading = true;
 
                 var folder = await StorageFolder.GetFolderFromPathAsync(folderPath);
                 var query = folder.CreateFileQueryWithOptions(queryOptions);
 
-                // Get initial batch of files
                 var files = await query.GetFilesAsync(0, PAGE_SIZE);
 
-                foreach (var file in files.Where(f => FilterMatches(f)))
+                foreach (var file in files)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
                     var photoItem = await CreatePhotoItemAsync(file);
                     _photoCollection.Add(photoItem);
 
-                    // Start preloading the full image
                     _ = _imageLoader.PreloadImageAsync(photoItem.FilePath);
                 }
 
-                // Apply current sorting
-                _photoCollection.ApplySort(_currentSortOption, _sortAscending);
-
-                // Clear selection
                 SelectedItem = null;
                 PreviewImage.Source = null;
             }
@@ -211,7 +172,6 @@ namespace DiffusionView
             }
             catch (Exception ex)
             {
-                // Handle or log any errors
                 var dialog = new ContentDialog
                 {
                     Title = "Error Loading Photos",
@@ -223,11 +183,10 @@ namespace DiffusionView
             finally
             {
                 _isLoading = false;
-                LoadingMoreRing.IsActive = false;
             }
         }
 
-        private async void UpdatePreviewPane(PhotoItem photo)
+        private void UpdatePreviewPane(PhotoItem photo)
         {
             if (photo == null)
             {
@@ -235,13 +194,11 @@ namespace DiffusionView
                 return;
             }
 
-            // Update the preview image
             try
             {
                 var bitmap = new BitmapImage(new Uri(photo.FilePath));
                 PreviewImage.Source = bitmap;
 
-                // Update details
                 FileNameText.Text = photo.FileName;
                 DateTakenText.Text = photo.DateTaken?.ToString("MMMM dd, yyyy") ?? "Unknown";
                 SizeText.Text = FormatFileSize(photo.FileSize);
@@ -250,15 +207,13 @@ namespace DiffusionView
                     ? $"{photo.Location.Latitude:F6}, {photo.Location.Longitude:F6}"
                     : "No location data";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                // Handle any loading errors
                 PreviewImage.Source = null;
-                // Optionally show error message
             }
         }
 
-        private string FormatFileSize(ulong bytes)
+        private static string FormatFileSize(ulong bytes)
         {
             string[] sizes = { "B", "KB", "MB", "GB" };
             int order = 0;
@@ -291,7 +246,7 @@ namespace DiffusionView
             var verticalOffset = scrollViewer.VerticalOffset;
             var maxVerticalOffset = scrollViewer.ScrollableHeight;
 
-            if (maxVerticalOffset - verticalOffset <= 200) // Load more when near bottom
+            if (maxVerticalOffset - verticalOffset <= 200)
             {
                 await LoadMorePhotosAsync();
             }
@@ -305,7 +260,6 @@ namespace DiffusionView
             try
             {
                 _isLoading = true;
-                LoadingMoreRing.IsActive = true;
 
                 _loadingCancellation?.Cancel();
                 _loadingCancellation = new CancellationTokenSource();
@@ -319,18 +273,12 @@ namespace DiffusionView
 
                 queryOptions.SetPropertyPrefetch(PropertyPrefetchOptions.BasicProperties |
                                                PropertyPrefetchOptions.ImageProperties,
-                                               new string[] { "System.GPS.Latitude", "System.GPS.Longitude" });
-
-                if (!string.IsNullOrEmpty(_fileTypeFilter))
-                {
-                    queryOptions.FileTypeFilter.Add(_fileTypeFilter);
-                }
+                                               ["System.GPS.Latitude", "System.GPS.Longitude"]);
 
                 var folder = await StorageFolder.GetFolderFromPathAsync(_currentFolderPath);
                 var query = folder.CreateFileQueryWithOptions(queryOptions);
 
                 var files = (await query.GetFilesAsync())
-                    .Where(f => FilterMatches(f))
                     .Skip(_photoCollection.Count)
                     .Take(PAGE_SIZE);
 
@@ -341,8 +289,6 @@ namespace DiffusionView
                     _photoCollection.Add(photoItem);
                     _ = _imageLoader.PreloadImageAsync(photoItem.FilePath);
                 }
-
-                _photoCollection.ApplySort(_currentSortOption, _sortAscending);
             }
             catch (OperationCanceledException)
             {
@@ -351,30 +297,8 @@ namespace DiffusionView
             finally
             {
                 _isLoading = false;
-                LoadingMoreRing.IsActive = false;
                 _loadingSemaphore.Release();
             }
-        }
-
-        private bool FilterMatches(StorageFile file)
-        {
-            if (!string.IsNullOrEmpty(_searchFilter) &&
-                !file.Name.Contains(_searchFilter, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            if (_fromDate.HasValue || _toDate.HasValue)
-            {
-                var dateTaken = _metadataCache.GetDateTaken(file.Path);
-                if (dateTaken.HasValue)
-                {
-                    if (_fromDate.HasValue && dateTaken < _fromDate.Value) return false;
-                    if (_toDate.HasValue && dateTaken > _toDate.Value) return false;
-                }
-            }
-
-            return true;
         }
 
         private async Task<PhotoItem> CreatePhotoItemAsync(StorageFile file)
@@ -425,7 +349,7 @@ namespace DiffusionView
             }
         }
 
-        private void UpdatePhotoItemFromMetadata(PhotoItem photoItem, PhotoMetadata metadata)
+        private static void UpdatePhotoItemFromMetadata(PhotoItem photoItem, PhotoMetadata metadata)
         {
             photoItem.DateTaken = metadata.DateTaken;
             photoItem.FileSize = metadata.FileSize;
@@ -434,7 +358,7 @@ namespace DiffusionView
             photoItem.Location = metadata.Location;
         }
 
-        private async Task<GeoLocation> GetPhotoLocation(StorageFile file)
+        private static async Task<GeoLocation> GetPhotoLocation(StorageFile file)
         {
             try
             {
@@ -461,99 +385,31 @@ namespace DiffusionView
             }
         }
 
-        private async void ShareButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (SelectedItem is PhotoItem selectedPhoto)
-            {
-                var dataTransferManager = DataTransferManager.GetForCurrentView();
-                // Implement sharing logic
-            }
-        }
-
         private async void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (SelectedItem is PhotoItem selectedPhoto)
+            if (SelectedItem is not PhotoItem selectedPhoto)
             {
-                var dialog = new ContentDialog
-                {
-                    Title = "Delete Photo",
-                    Content = $"Are you sure you want to delete {selectedPhoto.FileName}?",
-                    PrimaryButtonText = "Delete",
-                    CloseButtonText = "Cancel",
-                    DefaultButton = ContentDialogButton.Close
-                };
-
-                var result = await dialog.ShowAsync();
-                if (result == ContentDialogResult.Primary)
-                {
-                    var file = await StorageFile.GetFileFromPathAsync(selectedPhoto.FilePath);
-                    await file.DeleteAsync();
-                    _photoCollection.Remove(selectedPhoto);
-                    _thumbnailCache.RemoveThumbnail(selectedPhoto.FilePath);
-                    _metadataCache.RemoveMetadata(selectedPhoto.FilePath);
-                }
+                return;
             }
-        }
 
-        private void ViewMode_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is AppBarButton button)
+            var dialog = new ContentDialog
             {
-                var viewMode = button.Tag.ToString();
-                // Implement view mode switching logic
-            }
-        }
+                Title = "Delete Photo",
+                Content = $"Are you sure you want to delete {selectedPhoto.FileName}?",
+                PrimaryButtonText = "Delete",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close
+            };
 
-        private void SortBy_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuFlyoutItem menuItem)
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
             {
-                _currentSortOption = Enum.Parse<PhotoSortOption>(menuItem.Tag.ToString());
-                _photoCollection.ApplySort(_currentSortOption, _sortAscending);
+                var file = await StorageFile.GetFileFromPathAsync(selectedPhoto.FilePath);
+                await file.DeleteAsync();
+                _photoCollection.Remove(selectedPhoto);
+                _thumbnailCache.RemoveThumbnail(selectedPhoto.FilePath);
+                _metadataCache.RemoveMetadata(selectedPhoto.FilePath);
             }
-        }
-
-        private void SortDirection_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is ToggleMenuFlyoutItem toggleItem)
-            {
-                _sortAscending = toggleItem.IsChecked;
-                _photoCollection.ApplySort(_currentSortOption, _sortAscending);
-            }
-        }
-
-        private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            _searchFilter = SearchBox.Text;
-            RefreshPhotos();
-        }
-
-        private void FileType_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (sender is ComboBox comboBox)
-            {
-                _fileTypeFilter = comboBox.SelectedItem.ToString() == "All" ? "" : comboBox.SelectedItem.ToString();
-                RefreshPhotos();
-            }
-        }
-
-        private void DateFilter_Changed(object sender, DatePickerValueChangedEventArgs e)
-        {
-            if (sender is DatePicker datePicker)
-            {
-                if (datePicker.Name == "FromDatePicker")
-                    _fromDate = datePicker.Date.Date;
-                else
-                    _toDate = datePicker.Date.Date;
-
-                RefreshPhotos();
-            }
-        }
-
-        private async void RefreshPhotos()
-        {
-            _photoCollection.Clear();
-            await LoadMorePhotosAsync();
         }
 
         private FolderItem GetFolderByName(string name)
@@ -580,7 +436,7 @@ namespace DiffusionView
                 try
                 {
                     var file = await StorageFile.GetFileFromPathAsync(filePath);
-                    using var thumbnailStream = await file.GetThumbnailAsync(ThumbnailMode.PicturesView);
+                    using var thumbnailStream = await file.GetThumbnailAsync(ThumbnailMode.PicturesView, 200, ThumbnailOptions.UseCurrentScale);
                     await thumbnail.SetSourceAsync(thumbnailStream);
 
                     if (_cache.Count >= MAX_CACHE_SIZE)
@@ -675,33 +531,7 @@ namespace DiffusionView
             }
         }
 
-        private class PhotoCollection : ObservableCollection<PhotoItem>
-        {
-            public void ApplySort(PhotoSortOption sortOption, bool ascending)
-            {
-                var sorted = sortOption switch
-                {
-                    PhotoSortOption.Name => this.OrderBy(p => p.FileName),
-                    PhotoSortOption.Date => this.OrderBy(p => p.DateTaken ?? DateTime.MaxValue),
-                    PhotoSortOption.Size => this.OrderBy(p => p.FileSize),
-                    _ => this.OrderBy(p => p.FileName)
-                };
-
-                if (!ascending)
-                {
-                    sorted = (IOrderedEnumerable<PhotoItem>)sorted.Reverse();
-                }
-
-                var items = sorted.ToList();
-                this.Clear();
-                foreach (var item in items)
-                {
-                    this.Add(item);
-                }
-            }
-        }
-
-        public class PhotoItem : INotifyPropertyChanged
+        public partial class PhotoItem : INotifyPropertyChanged
         {
             private string fileName;
             private string filePath;
@@ -804,13 +634,6 @@ namespace DiffusionView
         {
             public string Name { get; set; }
             public string FolderPath { get; set; }
-        }
-
-        private enum PhotoSortOption
-        {
-            Name,
-            Date,
-            Size
         }
     }
 }
