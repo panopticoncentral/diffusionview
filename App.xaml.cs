@@ -1,20 +1,19 @@
 ﻿using Microsoft.UI.Xaml;
 
-namespace DiffusionView
+namespace DiffusionView;
+
+public partial class App
 {
-    public partial class App : Application
+    private Window _mainWindow;
+
+    public App()
     {
-        private Window m_window;
+        InitializeComponent();
+    }
 
-        public App()
-        {
-            InitializeComponent();
-        }
-
-        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
-        {
-            m_window = new MainWindow();
-            m_window.Activate();
-        }
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    {
+        _mainWindow = new MainWindow();
+        _mainWindow.Activate();
     }
 }

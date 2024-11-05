@@ -3,7 +3,6 @@
     x:Class="DiffusionView.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:DiffusionView"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
@@ -11,38 +10,35 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition x:Name="TitleBarRow" Height="Auto"/>
-            <RowDefinition x:Name="NavigationViewRow" Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AppTitleBar" Height="48" Grid.Row="0">
+        <Grid Height="48" Grid.Row="0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="LeftPaddingColumn" Width="0"/>
-                <ColumnDefinition x:Name="IconColumn" Width="Auto"/>
-                <ColumnDefinition x:Name="TitleColumn" Width="Auto"/>
-                <ColumnDefinition x:Name="LeftDragColumn" Width="*"/>
-                <ColumnDefinition x:Name="SearchColumn" Width="4*" MinWidth="220"/>
-                <ColumnDefinition x:Name="RightDragColumn" Width="*" MinWidth="48"/>
-                <ColumnDefinition x:Name="RightPaddingColumn" Width="0"/>
+                <ColumnDefinition Width="0"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="4*" MinWidth="220"/>
+                <ColumnDefinition Width="*" MinWidth="48"/>
+                <ColumnDefinition Width="0"/>
             </Grid.ColumnDefinitions>
 
-            <FontIcon x:Name="TitleBarIcon"
-                      Grid.Column="1"
+            <FontIcon Grid.Column="1"
                       FontFamily="{StaticResource SymbolThemeFontFamily}"
                       Glyph="&#xEB9F;"
                       FontSize="16"
                       VerticalAlignment="Center"
                       Margin="12,0,0,0"/>
 
-            <TextBlock x:Name="TitleBarTitle"
-                       Text="Diffusion View"
+            <TextBlock Text="Diffusion View"
                        Grid.Column="2"
                        VerticalAlignment="Center"
                        Margin="12,0,0,0"
                        Style="{StaticResource CaptionTextBlockStyle}"/>
 
-            <AutoSuggestBox x:Name="TitleBarSearchBox" 
-                            Grid.Column="4" 
+            <AutoSuggestBox Grid.Column="4" 
                             QueryIcon="Find"
                             PlaceholderText="Search"
                             VerticalAlignment="Center"
@@ -57,9 +53,7 @@
                         ItemInvoked="NavView_ItemInvoked">
 
             <NavigationView.MenuItems>
-                <NavigationViewItem x:Name="AllPhotosButton" 
-                                    Icon="Folder" 
-                                    Content="All Photos" />
+                <NavigationViewItem Icon="Folder" Content="All Photos" />
                 <NavigationViewItemHeader Content="Folders" />
             </NavigationView.MenuItems>
 
@@ -69,16 +63,14 @@
                                     Content="Add Folder"/>
             </NavigationView.FooterMenuItems>
 
-            <Grid x:Name="AppContent">
+            <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition x:Name="GalleryColumn" Width="*" MinWidth="400"/>
-                    <ColumnDefinition x:Name="SplitterColumn" Width="Auto" />
-                    <ColumnDefinition x:Name="PhotoColumn" Width="320" MinWidth="200"/>
+                    <ColumnDefinition Width="*" MinWidth="400"/>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="320" MinWidth="200"/>
                 </Grid.ColumnDefinitions>
 
-                <ScrollViewer x:Name="PhotoScrollViewer"
-                              Grid.Row="1"
-                              Padding="8,0,8,8"
+                <ScrollViewer Padding="8,0,8,8"
                               ViewChanged="ScrollViewer_ViewChanged"
                               Background="{ThemeResource CardStrokeColorDefaultBrush}">
                     <ItemsRepeater x:Name="PhotoRepeater">
@@ -144,20 +136,12 @@
                     </ItemsRepeater>
                 </ScrollViewer>
 
-                <controls:GridSplitter x:Name="GallerySplitter"
-                                       Grid.Column="1"
+                <controls:GridSplitter Grid.Column="1"
                                        Background="{ThemeResource SystemControlForegroundChromeMediumBrush}"
                                        Opacity="0.5"
                                        ResizeBehavior="PreviousAndNext"
                                        HorizontalAlignment="Center"
-                                       VerticalAlignment="Stretch">
-                    <controls:GridSplitter.Resources>
-                        <ResourceDictionary>
-                            <SolidColorBrush x:Key="GridSplitterBackgroundPointerOver" Color="{ThemeResource SystemAccentColor}"/>
-                            <SolidColorBrush x:Key="GridSplitterBackgroundPressed" Color="{ThemeResource SystemAccentColor}"/>
-                        </ResourceDictionary>
-                    </controls:GridSplitter.Resources>
-                </controls:GridSplitter>
+                                       VerticalAlignment="Stretch"/>
 
                 <Grid Grid.Column="2" Margin="12">
                     <Grid.RowDefinitions>
