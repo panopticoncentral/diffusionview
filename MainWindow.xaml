@@ -76,7 +76,7 @@
                               Background="{ThemeResource CardStrokeColorDefaultBrush}">
                     <ItemsRepeater ItemsSource="{x:Bind PhotoCollection}">
                         <ItemsRepeater.Layout>
-                            <controls:StaggeredLayout ColumnSpacing="4" RowSpacing="4" DesiredColumnWidth="200"/>
+                            <local:PhotoGalleryLayout DesiredHeight="200" Spacing="4"/>
                         </ItemsRepeater.Layout>
 
                         <ItemsRepeater.ItemTemplate>
