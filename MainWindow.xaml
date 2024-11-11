@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:local="using:DiffusionView"
     mc:Ignorable="d">
 
     <Grid>
@@ -73,13 +74,13 @@
                 <ScrollViewer Padding="8,0,8,8"
                               ViewChanged="ScrollViewer_ViewChanged"
                               Background="{ThemeResource CardStrokeColorDefaultBrush}">
-                    <ItemsRepeater x:Name="PhotoRepeater">
+                    <ItemsRepeater ItemsSource="{x:Bind PhotoCollection}">
                         <ItemsRepeater.Layout>
                             <controls:StaggeredLayout ColumnSpacing="4" RowSpacing="4" DesiredColumnWidth="200"/>
                         </ItemsRepeater.Layout>
 
                         <ItemsRepeater.ItemTemplate>
-                            <DataTemplate>
+                            <DataTemplate x:DataType="local:PhotoItem">
                                 <Button Background="Transparent" BorderThickness="0" Padding="0" Click="PhotoItem_Click">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -118,15 +119,13 @@
 
                                                 <Viewbox Height="200" StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
                                                     <Grid>
-                                                        <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
+                                                        <Image Source="{Binding Thumbnail, Mode=OneWay}" Stretch="Uniform"/>
                                                         <Border x:Name="HoverBorder" Background="{ThemeResource SystemBaseLowColor}" Opacity="0"/>
                                                         <Border x:Name="SelectionBorder" BorderBrush="{ThemeResource SystemAccentColor}" BorderThickness="3" Visibility="Collapsed"/>
                                                     </Grid>
                                                 </Viewbox>
-
-                                                <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Bottom" Margin="8,4" Padding="4"/>
-
-                                                <ProgressRing IsActive="{Binding IsLoading}" Width="32" Height="32" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{Binding FileName, Mode=OneWay}" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Bottom" Margin="8,4" Padding="4"/>
+                                                <ProgressRing IsActive="{Binding IsLoading, Mode=OneWay}" Width="32" Height="32" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                             </Grid>
                                         </ControlTemplate>
                                     </Button.Template>
@@ -163,7 +162,6 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="File name:" />
@@ -177,9 +175,6 @@
 
                             <TextBlock Grid.Row="3" Grid.Column="0" Text="Resolution:" />
                             <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ResolutionText" />
-
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Location:" />
-                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="LocationText" />
                         </Grid>
 
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
