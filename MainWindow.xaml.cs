@@ -121,17 +121,6 @@ public sealed partial class MainWindow
         return await AddFolderRecursive(folder);
     }
 
-    private async Task SelectFolder(NavigationViewItem folderViewItem)
-    {
-        if (!_folders.TryGetValue((string)folderViewItem.Tag, out var folderItem))
-        {
-            return;
-        }
-
-        _currentFolderPath = folderItem.FolderPath;
-        await LoadPhotosFromFolder(folderItem.FolderPath);
-    }
-
     private async Task LoadMetadataAsync(PhotoItem photoItem, StorageFile file)
     {
         try
@@ -190,11 +179,13 @@ public sealed partial class MainWindow
     private async Task LoadPhotosFromFolder(string folderPath)
     {
         PhotoCollection.Clear();
-        _currentFolderPath = folderPath;
 
         try
         {
-            _loadingCancellation?.Cancel();
+            if (_loadingCancellation != null)
+            {
+                await _loadingCancellation.CancelAsync();
+            }
             _loadingCancellation = new CancellationTokenSource();
             var cancellationToken = _loadingCancellation.Token;
 
@@ -206,8 +197,7 @@ public sealed partial class MainWindow
 
             queryOptions.SetPropertyPrefetch(
                 PropertyPrefetchOptions.BasicProperties | PropertyPrefetchOptions.ImageProperties,
-                ["System.GPS.Latitude", "System.GPS.Longitude"]);
-
+                []);
             queryOptions.FileTypeFilter.Add(".png");
 
             _isLoading = true;
@@ -248,6 +238,17 @@ public sealed partial class MainWindow
         {
             _isLoading = false;
         }
+    }
+
+    private async Task SelectFolder(NavigationViewItem folderViewItem)
+    {
+        if (!_folders.TryGetValue((string)folderViewItem.Tag, out var folderItem))
+        {
+            return;
+        }
+
+        _currentFolderPath = folderItem.FolderPath;
+        await LoadPhotosFromFolder(folderItem.FolderPath);
     }
 
     private async void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
@@ -330,7 +331,10 @@ public sealed partial class MainWindow
         {
             _isLoading = true;
 
-            _loadingCancellation?.Cancel();
+            if (_loadingCancellation != null)
+            {
+                await _loadingCancellation.CancelAsync();
+            }
             _loadingCancellation = new CancellationTokenSource();
             var cancellationToken = _loadingCancellation.Token;
 

@@ -55,7 +55,7 @@ public class PhotoGalleryLayout : VirtualizingLayout
             currentIndex++;
         }
 
-        if (!items.Any()) return new Size(0, 0);
+        if (items.Count == 0) return new Size(0, 0);
 
         var totalHeight = 0d;
         var currentRow = new List<(int Index, UIElement Element, double AspectRatio)>();
@@ -84,24 +84,23 @@ public class PhotoGalleryLayout : VirtualizingLayout
         }
 
         // Layout last row if any items remain
-        if (currentRow.Any())
-        {
-            LayoutRow(currentRow, availableSize.Width, DesiredHeight, totalHeight);
-            totalHeight += DesiredHeight + Spacing;
-        }
+        if (currentRow.Count == 0) return new Size(availableSize.Width, totalHeight);
+
+        LayoutRow(currentRow, availableSize.Width, DesiredHeight, totalHeight);
+        totalHeight += DesiredHeight + Spacing;
 
         return new Size(availableSize.Width, totalHeight);
     }
 
     private void LayoutRow(List<(int Index, UIElement Element, double AspectRatio)> row, double availableWidth, double rowHeight, double yOffset)
     {
-        var totalAspectRatio = row.Sum(item => item.AspectRatio);
-        var scale = (availableWidth - (Spacing * (row.Count - 1))) / (rowHeight * totalAspectRatio);
+        //var totalAspectRatio = row.Sum(item => item.AspectRatio);
+        //var scale = (availableWidth - Spacing * (row.Count - 1)) / (rowHeight * totalAspectRatio);
         var xOffset = 0d;
 
         foreach (var (index, element, aspectRatio) in row)
         {
-            var width = rowHeight * aspectRatio * scale;
+            var width = rowHeight * aspectRatio; // * scale;
 
             element.Measure(new Size(width, rowHeight));
 
@@ -116,11 +115,9 @@ public class PhotoGalleryLayout : VirtualizingLayout
     {
         for (var i = 0; i < context.ItemCount; i++)
         {
-            if (_elementBounds.TryGetValue(i, out var bounds))
-            {
-                var element = context.GetOrCreateElementAt(i);
-                element.Arrange(bounds);
-            }
+            if (!_elementBounds.TryGetValue(i, out var bounds)) continue;
+            var element = context.GetOrCreateElementAt(i);
+            element.Arrange(bounds);
         }
         return finalSize;
     }
