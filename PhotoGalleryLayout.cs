@@ -46,8 +46,7 @@ public class PhotoGalleryLayout : VirtualizingLayout
             var element = context.GetOrCreateElementAt(currentIndex) as FrameworkElement;
             if (element == null) break;
 
-            var photoItem = element.DataContext as PhotoItem;
-            if (photoItem == null) break;
+            if (element.DataContext is not PhotoItem photoItem) break;
 
             var aspectRatio = (double)photoItem.Width / photoItem.Height;
             if (double.IsNaN(aspectRatio) || aspectRatio == 0) aspectRatio = 1;
