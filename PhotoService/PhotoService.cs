@@ -348,7 +348,7 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private static BitmapImage CreateBitmapImage(byte[] data)
+    public static BitmapImage CreateBitmapImage(byte[] data)
     {
         if (data == null)
         {

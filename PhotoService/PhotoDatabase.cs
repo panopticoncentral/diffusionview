@@ -16,7 +16,7 @@ public sealed partial class PhotoDatabase : DbContext
             "DiffusionView"
         );
 
-        Directory.CreateDirectory(appDataPath);
+        var x = Directory.CreateDirectory(appDataPath);
 
         var dbPath = Path.Combine(appDataPath, "photos.db");
         options.UseSqlite($"Data Source={dbPath}");
