@@ -62,38 +62,34 @@ public sealed partial class MainWindow : Window
 
         _photoService.PhotoAdded += (s, e) =>
         {
-            if (e.Photo.FilePath.StartsWith(_currentFolderPath))
+            if (_currentFolderPath == null || !e.Photo.FilePath.StartsWith(_currentFolderPath)) return;
+            DispatcherQueue.TryEnqueue(() =>
             {
-                DispatcherQueue.TryEnqueue(() =>
+                var photo = new PhotoItem
                 {
-                    var photo = new PhotoItem
-                    {
-                        FileName = e.Photo.FileName,
-                        FilePath = e.Photo.FilePath,
-                        DateTaken = e.Photo.DateTaken,
-                        FileSize = e.Photo.FileSize,
-                        Width = e.Photo.Width,
-                        Height = e.Photo.Height,
-                        Thumbnail = CreateBitmapImage(e.Photo.ThumbnailData)
-                    };
-                    PhotoCollection.Add(photo);
-                });
-            }
+                    FileName = e.Photo.FileName,
+                    FilePath = e.Photo.FilePath,
+                    DateTaken = e.Photo.DateTaken,
+                    FileSize = e.Photo.FileSize,
+                    Width = e.Photo.Width,
+                    Height = e.Photo.Height,
+                    Thumbnail = CreateBitmapImage(e.Photo.ThumbnailData)
+                };
+                PhotoCollection.Add(photo);
+            });
         };
 
         _photoService.PhotoRemoved += (s, e) =>
         {
-            if (e.Photo.FilePath.StartsWith(_currentFolderPath))
+            if (_currentFolderPath == null || !e.Photo.FilePath.StartsWith(_currentFolderPath)) return;
+            DispatcherQueue.TryEnqueue(() =>
             {
-                DispatcherQueue.TryEnqueue(() =>
+                var photo = PhotoCollection.FirstOrDefault(p => p.FilePath == e.Photo.FilePath);
+                if (photo != null)
                 {
-                    var photo = PhotoCollection.FirstOrDefault(p => p.FilePath == e.Photo.FilePath);
-                    if (photo != null)
-                    {
-                        PhotoCollection.Remove(photo);
-                    }
-                });
-            }
+                    PhotoCollection.Remove(photo);
+                }
+            });
         };
 
         _photoService.FolderRemoved += (s, e) =>
