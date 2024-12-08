@@ -32,59 +32,9 @@ public sealed partial class PhotoService : IDisposable
         _db.Database.EnsureCreated();
     }
 
-    public async Task CleanupDatabaseAsync()
-    {
-        var folders = await _db.Folders.ToListAsync();
-        var foldersToRemove = new List<StoredFolder>();
-
-        foreach (var folder in folders)
-        {
-            try
-            {
-                await StorageFolder.GetFolderFromPathAsync(folder.Path);
-            }
-            catch (Exception)
-            {
-                foldersToRemove.Add(folder);
-                FolderRemoved?.Invoke(this, new FolderCleanupEventArgs(folder.Path, "Folder is no longer accessible"));
-            }
-        }
-
-        foreach (var folder in foldersToRemove)
-        {
-            var photos = await _db.Photos.Where(p => p.FolderId == folder.Id).ToListAsync();
-            _db.Photos.RemoveRange(photos);
-            _db.Folders.Remove(folder);
-
-            if (!_watchers.TryGetValue(folder.Path, out var watcher))
-            {
-                continue;
-            }
-
-            watcher.Dispose();
-            _watchers.Remove(folder.Path);
-        }
-
-        var remainingPhotos = await _db.Photos.ToListAsync();
-        var photosToRemove = new List<StoredPhoto>();
-
-        foreach (var photo in remainingPhotos)
-        {
-            try
-            {
-                await StorageFile.GetFileFromPathAsync(photo.FilePath);
-            }
-            catch (Exception)
-            {
-                photosToRemove.Add(photo);
-                PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
-            }
-        }
-
-        _db.Photos.RemoveRange(photosToRemove);
-
-        await _db.SaveChangesAsync();
-    }
+    /*
+     * Database handling
+     */
 
     private async Task AddOrUpdatePhotoAsync(int folderId, StorageFile file, StoredPhoto existingPhoto = null)
     {
@@ -128,66 +78,9 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private async Task SyncFolderContentsAsync(int folderId, StorageFolder folder)
-    {
-        var queryOptions = new QueryOptions
-        {
-            FolderDepth = FolderDepth.Deep,
-            IndexerOption = IndexerOption.UseIndexerWhenAvailable
-        };
-
-        queryOptions.SetPropertyPrefetch(
-            PropertyPrefetchOptions.BasicProperties | PropertyPrefetchOptions.ImageProperties,
-            ["System.GPS.Latitude", "System.GPS.Longitude"]);
-
-        queryOptions.FileTypeFilter.Add(".png");
-        queryOptions.FileTypeFilter.Add(".jpg");
-        queryOptions.FileTypeFilter.Add(".jpeg");
-
-        var query = folder.CreateFileQueryWithOptions(queryOptions);
-        var files = await query.GetFilesAsync();
-
-        var existingPhotos = await _db.Photos
-            .Where(p => p.FolderId == folderId)
-            .ToDictionaryAsync(p => p.FilePath);
-
-        var processedFiles = new HashSet<string>();
-
-        foreach (var file in files)
-        {
-            processedFiles.Add(file.Path);
-
-            var properties = await file.GetBasicPropertiesAsync();
-            var lastModified = properties.DateModified.LocalDateTime;
-
-            if (existingPhotos.TryGetValue(file.Path, out var existingPhoto))
-            {
-                if (existingPhoto.LastModified != lastModified)
-                {
-                    await AddOrUpdatePhotoAsync(folderId, file, existingPhoto);
-                }
-            }
-            else
-            {
-                await AddOrUpdatePhotoAsync(folderId, file);
-            }
-        }
-
-        var deletedPhotos = existingPhotos.Values
-            .Where(p => !processedFiles.Contains(p.FilePath))
-            .ToList();
-
-        foreach (var deletedPhoto in deletedPhotos)
-        {
-            _db.Photos.Remove(deletedPhoto);
-            PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(deletedPhoto));
-        }
-
-        if (deletedPhotos.Count != 0)
-        {
-            await _db.SaveChangesAsync();
-        }
-    }
+    /*
+     * File watching
+     */
 
     private static bool IsImageFile(string filePath)
     {
@@ -257,6 +150,125 @@ public sealed partial class PhotoService : IDisposable
         _watchers[folder.Path] = watcher;
     }
 
+    /*
+     * Initialization
+     */
+    
+    public async Task CleanupDatabaseAsync()
+    {
+        var folders = await _db.Folders.ToListAsync();
+        var foldersToRemove = new List<StoredFolder>();
+
+        foreach (var folder in folders)
+        {
+            try
+            {
+                await StorageFolder.GetFolderFromPathAsync(folder.Path);
+            }
+            catch (Exception)
+            {
+                foldersToRemove.Add(folder);
+                FolderRemoved?.Invoke(this, new FolderCleanupEventArgs(folder.Path, "Folder is no longer accessible"));
+            }
+        }
+
+        foreach (var folder in foldersToRemove)
+        {
+            var photos = await _db.Photos.Where(p => p.FolderId == folder.Id).ToListAsync();
+            _db.Photos.RemoveRange(photos);
+            _db.Folders.Remove(folder);
+
+            if (!_watchers.TryGetValue(folder.Path, out var watcher))
+            {
+                continue;
+            }
+
+            watcher.Dispose();
+            _watchers.Remove(folder.Path);
+        }
+
+        var remainingPhotos = await _db.Photos.ToListAsync();
+        var photosToRemove = new List<StoredPhoto>();
+
+        foreach (var photo in remainingPhotos)
+        {
+            try
+            {
+                await StorageFile.GetFileFromPathAsync(photo.FilePath);
+            }
+            catch (Exception)
+            {
+                photosToRemove.Add(photo);
+                PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
+            }
+        }
+
+        _db.Photos.RemoveRange(photosToRemove);
+
+        await _db.SaveChangesAsync();
+    }
+
+    private async Task SyncFolderContentsAsync(int folderId, StorageFolder folder)
+    {
+        var queryOptions = new QueryOptions
+        {
+            FolderDepth = FolderDepth.Deep,
+            IndexerOption = IndexerOption.UseIndexerWhenAvailable
+        };
+
+        queryOptions.SetPropertyPrefetch(
+            PropertyPrefetchOptions.BasicProperties | PropertyPrefetchOptions.ImageProperties,
+            ["System.GPS.Latitude", "System.GPS.Longitude"]);
+
+        queryOptions.FileTypeFilter.Add(".png");
+        queryOptions.FileTypeFilter.Add(".jpg");
+        queryOptions.FileTypeFilter.Add(".jpeg");
+
+        var query = folder.CreateFileQueryWithOptions(queryOptions);
+        var files = await query.GetFilesAsync();
+
+        var existingPhotos = await _db.Photos
+            .Where(p => p.FolderId == folderId)
+            .ToDictionaryAsync(p => p.FilePath);
+
+        var processedFiles = new HashSet<string>();
+
+        foreach (var file in files)
+        {
+            processedFiles.Add(file.Path);
+
+            var properties = await file.GetBasicPropertiesAsync();
+            var lastModified = properties.DateModified.LocalDateTime;
+
+            if (existingPhotos.TryGetValue(file.Path, out var existingPhoto))
+            {
+                if (existingPhoto.LastModified != lastModified)
+                {
+                    await AddOrUpdatePhotoAsync(folderId, file, existingPhoto);
+                }
+            }
+            else
+            {
+                await AddOrUpdatePhotoAsync(folderId, file);
+            }
+        }
+
+        var deletedPhotos = existingPhotos.Values
+            .Where(p => !processedFiles.Contains(p.FilePath))
+            .ToList();
+
+        foreach (var deletedPhoto in deletedPhotos)
+        {
+            _db.Photos.Remove(deletedPhoto);
+            PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(deletedPhoto));
+        }
+
+        if (deletedPhotos.Count != 0)
+        {
+            await _db.SaveChangesAsync();
+        }
+    }
+
     public async Task InitializeAsync()
     {
         await _syncLock.WaitAsync();
@@ -298,6 +310,10 @@ public sealed partial class PhotoService : IDisposable
             _syncLock.Release();
         }
     }
+
+    /*
+     * Add folder
+     */
 
     private async Task ScanFolderAsync(int folderId, StorageFolder folder)
     {
@@ -347,8 +363,12 @@ public sealed partial class PhotoService : IDisposable
             _syncLock.Release();
         }
     }
-
-    public static BitmapImage CreateBitmapImage(byte[] data)
+    
+    /*
+     * Get photos for folder
+     */
+   
+    private static BitmapImage CreateBitmapImage(byte[] data)
     {
         if (data == null)
         {
@@ -387,6 +407,10 @@ public sealed partial class PhotoService : IDisposable
             Thumbnail = CreateBitmapImage(p.ThumbnailData)
         }).ToList();
     }
+
+    /*
+     * Dispose
+     */
 
     public void Dispose()
     {
