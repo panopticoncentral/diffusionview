@@ -11,6 +11,7 @@ using Windows.Storage.FileProperties;
 using Windows.Storage.Search;
 using Windows.Storage.Streams;
 using Windows.Storage;
+using System.Collections.Concurrent;
 
 namespace DiffusionView.PhotoService;
 
@@ -20,16 +21,102 @@ public sealed partial class PhotoService : IDisposable
     private readonly Dictionary<string, FileSystemWatcher> _watchers = new();
     private readonly SemaphoreSlim _syncLock = new(1, 1);
 
+    private readonly ConcurrentQueue<(int FolderId, StorageFolder Folder)> _scanQueue = new();
+    private readonly CancellationTokenSource _queueCts = new();
+    private Task _scanTask;
+    private volatile bool _isPaused;
+
+    private readonly Dictionary<string, CancellationTokenSource> _scanCancellations = new();
+
     public event EventHandler<PhotoChangedEventArgs> PhotoAdded;
     public event EventHandler<PhotoChangedEventArgs> PhotoRemoved;
     public event EventHandler<PhotoChangedEventArgs> PhotoUpdated;
     public event EventHandler<FolderCleanupEventArgs> FolderRemoved;
     public event EventHandler<SyncProgressEventArgs> SyncProgress;
+    public event EventHandler<SyncProgressEventArgs> ScanProgress;
 
     public PhotoService()
     {
         _db = new PhotoDatabase();
         _db.Database.EnsureCreated();
+        StartQueueProcessor();
+    }
+
+    /*
+     * Folder scanning
+     */
+
+    private void StartQueueProcessor()
+    {
+        _scanTask = Task.Run(async () =>
+        {
+            while (!_queueCts.Token.IsCancellationRequested)
+            {
+                try
+                {
+                    // Wait if paused or no items
+                    while (_isPaused || !_scanQueue.TryPeek(out _))
+                    {
+                        await Task.Delay(100, _queueCts.Token);
+                    }
+
+                    // Process next item if available
+                    if (_scanQueue.TryDequeue(out var item))
+                    {
+                        await ScanFolderInBackgroundAsync(item.FolderId, item.Folder, _queueCts.Token);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception)
+                {
+                    // Log error but continue processing queue
+                    await Task.Delay(1000, _queueCts.Token); // Backoff on error
+                }
+            }
+        }, _queueCts.Token);
+    }
+
+    private async Task ScanFolderInBackgroundAsync(int folderId, StorageFolder folder, CancellationToken cancellationToken)
+    {
+        var queryOptions = new QueryOptions
+        {
+            FolderDepth = FolderDepth.Deep,
+            IndexerOption = IndexerOption.UseIndexerWhenAvailable
+        };
+
+        queryOptions.SetPropertyPrefetch(
+            PropertyPrefetchOptions.BasicProperties | PropertyPrefetchOptions.ImageProperties,
+            ["System.GPS.Latitude", "System.GPS.Longitude"]);
+
+        queryOptions.FileTypeFilter.Add(".png");
+        queryOptions.FileTypeFilter.Add(".jpg");
+        queryOptions.FileTypeFilter.Add(".jpeg");
+
+        var query = folder.CreateFileQueryWithOptions(queryOptions);
+        var files = await query.GetFilesAsync();
+        var totalFiles = files.Count;
+        var processedFiles = 0;
+
+        foreach (var file in files)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await AddOrUpdatePhotoAsync(folderId, file);
+            processedFiles++;
+
+            ScanProgress?.Invoke(this, new SyncProgressEventArgs(
+                processedFiles,
+                totalFiles,
+                folder.Path,
+                $"Scanning photos ({processedFiles}/{totalFiles})"
+            ));
+        }
     }
 
     /*
@@ -274,6 +361,9 @@ public sealed partial class PhotoService : IDisposable
         await _syncLock.WaitAsync();
         try
         {
+            // Pause queue processing during initialization
+            _isPaused = true;
+
             await CleanupDatabaseAsync();
 
             var folders = await _db.Folders.ToListAsync();
@@ -287,6 +377,9 @@ public sealed partial class PhotoService : IDisposable
                     var storageFolder = await StorageFolder.GetFolderFromPathAsync(folder.Path);
                     await SyncFolderContentsAsync(folder.Id, storageFolder);
                     StartWatching(folder);
+
+                    // Queue folder for full scan
+                    _scanQueue.Enqueue((folder.Id, storageFolder));
 
                     processedFolders++;
                     SyncProgress?.Invoke(this, new SyncProgressEventArgs(
@@ -308,6 +401,8 @@ public sealed partial class PhotoService : IDisposable
         finally
         {
             _syncLock.Release();
+            // Resume queue processing
+            _isPaused = false;
         }
     }
 
@@ -315,59 +410,46 @@ public sealed partial class PhotoService : IDisposable
      * Add folder
      */
 
-    private async Task ScanFolderAsync(int folderId, StorageFolder folder)
-    {
-        var queryOptions = new QueryOptions
-        {
-            FolderDepth = FolderDepth.Deep,
-            IndexerOption = IndexerOption.UseIndexerWhenAvailable
-        };
-
-        queryOptions.SetPropertyPrefetch(
-            PropertyPrefetchOptions.BasicProperties | PropertyPrefetchOptions.ImageProperties,
-            ["System.GPS.Latitude", "System.GPS.Longitude"]);
-
-        queryOptions.FileTypeFilter.Add(".png");
-        queryOptions.FileTypeFilter.Add(".jpg");
-        queryOptions.FileTypeFilter.Add(".jpeg");
-
-        var query = folder.CreateFileQueryWithOptions(queryOptions);
-        var files = await query.GetFilesAsync();
-
-        foreach (var file in files)
-        {
-            await AddOrUpdatePhotoAsync(folderId, file);
-        }
-    }
-
     public async Task AddFolderAsync(StorageFolder folder)
     {
-        await _syncLock.WaitAsync();
+        // Pause queue processing while adding new folder
+        _isPaused = true;
+
         try
         {
-            var storedFolder = new StoredFolder
+            await _syncLock.WaitAsync();
+            try
             {
-                Name = folder.Name,
-                Path = folder.Path,
-                LastScanned = DateTime.Now
-            };
+                var storedFolder = new StoredFolder
+                {
+                    Name = folder.Name,
+                    Path = folder.Path,
+                    LastScanned = DateTime.Now
+                };
 
-            _db.Folders.Add(storedFolder);
-            await _db.SaveChangesAsync();
+                _db.Folders.Add(storedFolder);
+                await _db.SaveChangesAsync();
+                StartWatching(storedFolder);
 
-            await ScanFolderAsync(storedFolder.Id, folder);
-            StartWatching(storedFolder);
+                // Queue the folder for scanning
+                _scanQueue.Enqueue((storedFolder.Id, folder));
+            }
+            finally
+            {
+                _syncLock.Release();
+            }
         }
         finally
         {
-            _syncLock.Release();
+            // Resume queue processing
+            _isPaused = false;
         }
     }
-    
+
     /*
      * Get photos for folder
      */
-   
+
     private static BitmapImage CreateBitmapImage(byte[] data)
     {
         if (data == null)
@@ -414,12 +496,24 @@ public sealed partial class PhotoService : IDisposable
 
     public void Dispose()
     {
+        _queueCts.Cancel();
+        try
+        {
+            _scanTask?.Wait(1000); // Give queue processor time to shut down
+        }
+        catch (Exception)
+        {
+            // Ignore exceptions during shutdown
+        }
+
         foreach (var watcher in _watchers.Values)
         {
             watcher.Dispose();
         }
         _watchers.Clear();
+
         _db.Dispose();
         _syncLock.Dispose();
+        _queueCts.Dispose();
     }
 }

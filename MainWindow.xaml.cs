@@ -24,9 +24,15 @@ public sealed partial class MainWindow : Window
     public ObservableCollection<PhotoItem> PhotoCollection { get; } = [];
     private string _currentFolderPath;
     private PhotoItem _selectedItem;
+
     private ContentDialog _syncDialog;
     private TextBlock _syncStatusText;
     private ProgressBar _syncProgressBar;
+
+    private ContentDialog _scanDialog;
+    private TextBlock _scanStatusText;
+    private ProgressBar _scanProgressBar;
+
 
     private PhotoItem SelectedItem
     {
@@ -134,6 +140,18 @@ public sealed partial class MainWindow : Window
             });
         };
 
+        _photoService.ScanProgress += (s, e) =>
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (e.ProcessedFolders == 1) // First item
+                {
+                    ShowScanProgressDialog(e);
+                }
+                UpdateScanProgress(e);
+            });
+        };
+
         InitializePhotoService();
     }
 
@@ -192,6 +210,46 @@ public sealed partial class MainWindow : Window
             {
                 _syncDialog?.Hide();
                 _syncDialog = null;
+            }
+        }
+    }
+
+    private void ShowScanProgressDialog(SyncProgressEventArgs e)
+    {
+        var content = new StackPanel { Spacing = 10 };
+        _scanStatusText = new TextBlock { Text = "Scanning folder..." };
+        _scanProgressBar = new ProgressBar
+        {
+            Minimum = 0,
+            Maximum = e.TotalFolders,
+            Value = e.ProcessedFolders
+        };
+
+        content.Children.Add(_scanStatusText);
+        content.Children.Add(_scanProgressBar);
+
+        _scanDialog = new ContentDialog
+        {
+            Title = "Scanning Photos",
+            Content = content,
+            CloseButtonText = "Hide",
+            XamlRoot = Content.XamlRoot
+        };
+
+        _ = _scanDialog.ShowAsync();
+    }
+
+    private void UpdateScanProgress(SyncProgressEventArgs e)
+    {
+        if (_scanProgressBar != null)
+        {
+            _scanProgressBar.Value = e.ProcessedFolders;
+            _scanStatusText.Text = $"Scanning: {e.CurrentFolder}\n{e.ProcessedFolders} of {e.TotalFolders} items processed";
+
+            if (e.ProcessedFolders == e.TotalFolders)
+            {
+                _scanDialog?.Hide();
+                _scanDialog = null;
             }
         }
     }
