@@ -3,36 +3,26 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.ObjectModel;
-using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
-using System.Threading;
 using System.Threading.Tasks;
 using Windows.Storage;
-using Windows.Storage.FileProperties;
-using Windows.Storage.Search;
 using Windows.Storage.Pickers;
 using Windows.System;
-using DiffusionView.PhotoService;
+using DiffusionView.Service;
 using WinRT.Interop;
+using System.Collections.Generic;
 
 namespace DiffusionView;
 
-public sealed partial class MainWindow : Window
+public sealed partial class MainWindow
 {
-    private readonly PhotoService.PhotoService _photoService = new();
-    public ObservableCollection<PhotoItem> PhotoCollection { get; } = [];
-    private string _currentFolderPath;
+    private readonly PhotoService _photoService;
+
+    private string _currentFolder;
+    private readonly ObservableCollection<PhotoItem> _currentPhotos = [];
+
     private PhotoItem _selectedItem;
-
-    private ContentDialog _syncDialog;
-    private TextBlock _syncStatusText;
-    private ProgressBar _syncProgressBar;
-
-    private ContentDialog _scanDialog;
-    private TextBlock _scanStatusText;
-    private ProgressBar _scanProgressBar;
-
 
     private PhotoItem SelectedItem
     {
@@ -66,289 +56,219 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
 
-        _photoService.PhotoAdded += (s, e) =>
-        {
-            if (_currentFolderPath == null || !e.Photo.FilePath.StartsWith(_currentFolderPath)) return;
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                var photo = new PhotoItem
-                {
-                    FileName = e.Photo.FileName,
-                    FilePath = e.Photo.FilePath,
-                    DateTaken = e.Photo.DateTaken,
-                    FileSize = e.Photo.FileSize,
-                    Width = e.Photo.Width,
-                    Height = e.Photo.Height,
-                    Thumbnail = CreateBitmapImage(e.Photo.ThumbnailData)
-                };
-                PhotoCollection.Add(photo);
-            });
-        };
-
-        _photoService.PhotoRemoved += (s, e) =>
-        {
-            if (_currentFolderPath == null || !e.Photo.FilePath.StartsWith(_currentFolderPath)) return;
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                var photo = PhotoCollection.FirstOrDefault(p => p.FilePath == e.Photo.FilePath);
-                if (photo != null)
-                {
-                    PhotoCollection.Remove(photo);
-                }
-            });
-        };
-
-        _photoService.FolderRemoved += (s, e) =>
-        {
-            DispatcherQueue.TryEnqueue(async () =>
-            {
-                // Remove the folder from navigation
-                var itemToRemove = FindNavViewItemByPath(NavView, e.FolderPath);
-                if (itemToRemove != null)
-                {
-                    NavView.MenuItems.Remove(itemToRemove);
-                }
-
-                // Show notification to user
-                var dialog = new ContentDialog
-                {
-                    Title = "Folder Removed",
-                    Content = $"The folder at {e.FolderPath} was removed because: {e.Reason}",
-                    CloseButtonText = "OK",
-                    XamlRoot = Content.XamlRoot
-                };
-                await dialog.ShowAsync();
-
-                // If the removed folder was selected, clear the photo collection
-                if (_currentFolderPath == e.FolderPath)
-                {
-                    PhotoCollection.Clear();
-                    _currentFolderPath = null;
-                }
-            });
-        };
-
-        _photoService.SyncProgress += (s, e) =>
-        {
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                if (e.ProcessedFolders == 1) // First folder
-                {
-                    ShowSyncProgressDialog(e);
-                }
-                UpdateSyncProgress(e);
-            });
-        };
-
-        _photoService.ScanProgress += (s, e) =>
-        {
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                if (e.ProcessedFolders == 1) // First item
-                {
-                    ShowScanProgressDialog(e);
-                }
-                UpdateScanProgress(e);
-            });
-        };
-
-        InitializePhotoService();
+        _photoService = new PhotoService();
+        _photoService.FolderAdded += PhotoService_FolderAdded;
+        _photoService.FolderRemoved += PhotoService_FolderRemoved;
+        _photoService.PhotoAdded += PhotoService_PhotoAdded;
+        _photoService.PhotoRemoved += PhotoService_PhotoRemoved;
+        _photoService.Initialize();
     }
 
-    private async void InitializePhotoService()
+    private void PhotoService_FolderAdded(object _, FolderChangedEventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(async void () =>
+        {
+            try
+            {
+                var rootItem = new NavigationViewItem
+                {
+                    Content = e.Name,
+                    Icon = new SymbolIcon(Symbol.Folder),
+                    Tag = e.Path
+                };
+
+                var folderHeaderIndex = -1;
+                for (var i = 0; i < NavView.MenuItems.Count; i++)
+                {
+                    if (NavView.MenuItems[i] is not NavigationViewItemHeader header ||
+                        header.Content?.ToString() != "Folders") continue;
+                    folderHeaderIndex = i;
+                    break;
+                }
+
+                if (folderHeaderIndex != -1)
+                {
+                    NavView.MenuItems.Insert(folderHeaderIndex + 1, rootItem);
+                }
+                else
+                {
+                    NavView.MenuItems.Add(rootItem);
+                }
+
+                var folder = await StorageFolder.GetFolderFromPathAsync(e.Path);
+                var subFolders = await folder.GetFoldersAsync();
+
+                await AddSubFolderItemsAsync(rootItem, subFolders);
+            }
+            catch (Exception)
+            {
+                // For now, ignore exceptions
+            }
+        });
+    }
+
+    private void PhotoService_FolderRemoved(object _, FolderChangedEventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_currentFolder == e.Path)
+            {
+                _currentPhotos.Clear();
+                _currentFolder = null;
+            }
+
+            foreach (var item in NavView.MenuItems.OfType<NavigationViewItem>())
+            {
+                if (item.Tag?.ToString() != e.Path) continue;
+                NavView.MenuItems.Remove(item);
+                break;
+            }
+        });
+    }
+
+    private void PhotoService_PhotoRemoved(object _, PhotoChangedEventArgs e)
+    {
+        if (_currentFolder == null || !e.Photo.Path.StartsWith(_currentFolder)) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var photo = _currentPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
+            if (photo == null) return;
+            if (SelectedItem == photo)
+            {
+                SelectedItem = null;
+            }
+            _currentPhotos.Remove(photo);
+        });
+    }
+
+    private void PhotoService_PhotoAdded(object _, PhotoChangedEventArgs e)
+    {
+        if (_currentFolder == null || e.Photo.Path != _currentFolder) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_currentFolder == null || e.Photo.Path != _currentFolder) return;
+            var photo = new PhotoItem
+            {
+                FileName = e.Photo.Name,
+                FilePath = e.Photo.Path,
+                DateTaken = e.Photo.DateTaken,
+                FileSize = e.Photo.FileSize,
+                Width = e.Photo.Width,
+                Height = e.Photo.Height,
+                Thumbnail = CreateBitmapImage(e.Photo.ThumbnailData)
+            };
+            _currentPhotos.Add(photo);
+        });
+    }
+
+    private async void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
         try
         {
-            await _photoService.InitializeAsync();
+            if (args.InvokedItemContainer is not NavigationViewItem item) return;
+ 
+            if (item == AddFolderButton)
+            {
+                await AddFolder();
+            }
+
+            await SelectFolder(item);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
+            // Don't do anything for the moment...
+        }
+    }
+
+    private void PhotoItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: PhotoItem photo }) return;
+        SelectedItem = photo;
+    }
+
+    private async void OpenButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (SelectedItem is not { } selectedPhoto) return;
+    
+            var file = await StorageFile.GetFileFromPathAsync(selectedPhoto.FilePath);
+            await Launcher.LaunchFileAsync(file);
+        }
+        catch (Exception)
+        {
+            // Don't do anything at this point
+        }
+    }
+
+    private async void DeleteButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (SelectedItem is not { } selectedPhoto) return;
+
             var dialog = new ContentDialog
             {
-                Title = "Initialization Error",
-                Content = $"Failed to initialize photo library: {ex.Message}",
-                CloseButtonText = "OK",
+                Title = "Delete Photo",
+                Content = $"Are you sure you want to delete {selectedPhoto.FileName}?",
+                PrimaryButtonText = "Delete",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
                 XamlRoot = Content.XamlRoot
             };
-            await dialog.ShowAsync();
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+
+            var file = await StorageFile.GetFileFromPathAsync(selectedPhoto.FilePath);
+            await file.DeleteAsync();
+        }
+        catch (Exception)
+        {
+            // For the moment, ignore exceptions
         }
     }
 
-    private void ShowSyncProgressDialog(SyncProgressEventArgs e)
+    private static async Task AddSubFolderItemsAsync(NavigationViewItem parentItem, IReadOnlyList<StorageFolder> folders)
     {
-        var content = new StackPanel { Spacing = 10 };
-        _syncStatusText = new TextBlock { Text = "Synchronizing folders..." };
-        _syncProgressBar = new ProgressBar
+        foreach (var folder in folders)
         {
-            Minimum = 0,
-            Maximum = e.TotalFolders,
-            Value = e.ProcessedFolders
-        };
-
-        content.Children.Add(_syncStatusText);
-        content.Children.Add(_syncProgressBar);
-
-        _syncDialog = new ContentDialog
-        {
-            Title = "Initializing Photo Library",
-            Content = content,
-            CloseButtonText = "Hide",
-            XamlRoot = Content.XamlRoot
-        };
-
-        _ = _syncDialog.ShowAsync();
-    }
-
-    private void UpdateSyncProgress(SyncProgressEventArgs e)
-    {
-        if (_syncProgressBar != null)
-        {
-            _syncProgressBar.Value = e.ProcessedFolders;
-            _syncStatusText.Text = $"Scanning: {e.CurrentFolder}\n{e.ProcessedFolders} of {e.TotalFolders} folders processed";
-
-            if (e.ProcessedFolders == e.TotalFolders)
+            try
             {
-                _syncDialog?.Hide();
-                _syncDialog = null;
+                // Create navigation item for this subfolder
+                var subItem = new NavigationViewItem
+                {
+                    Content = folder.Name,
+                    Icon = new SymbolIcon(Symbol.Folder),
+                    Tag = folder.Path
+                };
+
+                parentItem.MenuItems.Add(subItem);
+
+                var subFolders = await folder.GetFoldersAsync();
+                if (subFolders.Count > 0)
+                {
+                    await AddSubFolderItemsAsync(subItem, subFolders);
+                }
+            }
+            catch (Exception)
+            {
+                // For now, ignore exceptions
             }
         }
     }
 
-    private void ShowScanProgressDialog(SyncProgressEventArgs e)
+    private static BitmapImage CreateBitmapImage(byte[] data)
     {
-        var content = new StackPanel { Spacing = 10 };
-        _scanStatusText = new TextBlock { Text = "Scanning folder..." };
-        _scanProgressBar = new ProgressBar
-        {
-            Minimum = 0,
-            Maximum = e.TotalFolders,
-            Value = e.ProcessedFolders
-        };
-
-        content.Children.Add(_scanStatusText);
-        content.Children.Add(_scanProgressBar);
-
-        _scanDialog = new ContentDialog
-        {
-            Title = "Scanning Photos",
-            Content = content,
-            CloseButtonText = "Hide",
-            XamlRoot = Content.XamlRoot
-        };
-
-        _ = _scanDialog.ShowAsync();
-    }
-
-    private void UpdateScanProgress(SyncProgressEventArgs e)
-    {
-        if (_scanProgressBar != null)
-        {
-            _scanProgressBar.Value = e.ProcessedFolders;
-            _scanStatusText.Text = $"Scanning: {e.CurrentFolder}\n{e.ProcessedFolders} of {e.TotalFolders} items processed";
-
-            if (e.ProcessedFolders == e.TotalFolders)
-            {
-                _scanDialog?.Hide();
-                _scanDialog = null;
-            }
-        }
-    }
-
-    private async Task<NavigationViewItem> AddFolderRecursive(StorageFolder folder)
-    {
-        await _photoService.AddFolderAsync(folder);
-
-        var navItem = new NavigationViewItem
-        {
-            Content = folder.Name,
-            Icon = new SymbolIcon(Symbol.Folder),
-            Tag = folder.Path
-        };
-
-        var childFolders = await folder.GetFoldersAsync();
-        foreach (var childFolder in childFolders)
-        {
-            var subItem = await AddFolderRecursive(childFolder);
-            if (subItem != null)
-            {
-                navItem.MenuItems.Add(subItem);
-            }
-        }
-
-        return navItem;
-    }
-
-    private async Task<NavigationViewItem> AddFolder()
-    {
-        var folderPicker = new FolderPicker();
-        folderPicker.FileTypeFilter.Add("*");
-
-        var windowHandle = WindowNative.GetWindowHandle(this);
-        InitializeWithWindow.Initialize(folderPicker, windowHandle);
-
-        var folder = await folderPicker.PickSingleFolderAsync();
-        if (folder == null)
-        {
+        if (data == null)
             return null;
-        }
 
-        return await AddFolderRecursive(folder);
-    }
-
-    private async Task SelectFolder(NavigationViewItem folderViewItem)
-    {
-        var folderPath = (string)folderViewItem.Tag;
-        if (string.IsNullOrEmpty(folderPath))
-        {
-            return;
-        }
-
-        _currentFolderPath = folderPath;
-        PhotoCollection.Clear();
-        var photos = await _photoService.GetPhotosForFolderAsync(folderPath);
-        foreach (var photo in photos)
-        {
-            PhotoCollection.Add(photo);
-        }
-
-        SelectedItem = null;
-        PreviewImage.Source = null;
-    }
-
-    private NavigationViewItem FindNavViewItemByPath(NavigationView navView, string path)
-    {
-        foreach (var item in navView.MenuItems.OfType<NavigationViewItem>())
-        {
-            if (item.Tag?.ToString() == path)
-            {
-                return item;
-            }
-
-            var found = FindNavViewItemByPathRecursive(item, path);
-            if (found != null)
-            {
-                return found;
-            }
-        }
-        return null;
-    }
-
-    private NavigationViewItem FindNavViewItemByPathRecursive(NavigationViewItem parent, string path)
-    {
-        foreach (var item in parent.MenuItems.OfType<NavigationViewItem>())
-        {
-            if (item.Tag?.ToString() == path)
-            {
-                return item;
-            }
-
-            var found = FindNavViewItemByPathRecursive(item, path);
-            if (found != null)
-            {
-                return found;
-            }
-        }
-        return null;
+        var image = new BitmapImage();
+        using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+        stream.WriteAsync(data.AsBuffer()).GetResults();
+        stream.Seek(0);
+        image.SetSource(stream);
+        return image;
     }
 
     private static string FormatFileSize(ulong bytes)
@@ -390,85 +310,37 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private static BitmapImage CreateBitmapImage(byte[] data)
+    private async Task AddFolder()
     {
-        if (data == null)
-            return null;
+        var folderPicker = new FolderPicker();
+        folderPicker.FileTypeFilter.Add("*");
 
-        var image = new BitmapImage();
-        using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-        stream.WriteAsync(data.AsBuffer()).GetResults();
-        stream.Seek(0);
-        image.SetSource(stream);
-        return image;
+        var windowHandle = WindowNative.GetWindowHandle(this);
+        InitializeWithWindow.Initialize(folderPicker, windowHandle);
+
+        var folder = await folderPicker.PickSingleFolderAsync();
+        if (folder == null)
+        {
+            return;
+        }
+
+        await _photoService.AddFolderAsync(folder);
     }
 
-    private async void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
+    private async Task SelectFolder(NavigationViewItem folderViewItem)
     {
-        if (args.InvokedItemContainer is not NavigationViewItem item)
+        var folderPath = (string)folderViewItem.Tag;
+        if (string.IsNullOrEmpty(folderPath)) return;
+
+        _currentFolder = folderPath;
+        _currentPhotos.Clear();
+        var photos = await _photoService.GetPhotosForFolderAsync(folderPath);
+        foreach (var photo in photos)
         {
-            return;
+            _currentPhotos.Add(photo);
         }
 
-        if (item == AddFolderButton)
-        {
-            item = await AddFolder();
-            if (item == null)
-            {
-                return;
-            }
-
-            NavView.MenuItems.Add(item);
-            NavView.SelectedItem = item;
-        }
-
-        await SelectFolder(item);
-    }
-
-    private void PhotoItem_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { DataContext: PhotoItem photo })
-        {
-            return;
-        }
-
-        SelectedItem = photo;
-    }
-
-    private async void OpenButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (SelectedItem is not { } selectedPhoto)
-        {
-            return;
-        }
-        var file = await StorageFile.GetFileFromPathAsync(selectedPhoto.FilePath);
-        await Launcher.LaunchFileAsync(file);
-    }
-
-    private async void DeleteButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (SelectedItem is not { } selectedPhoto)
-        {
-            return;
-        }
-
-        var dialog = new ContentDialog
-        {
-            Title = "Delete Photo",
-            Content = $"Are you sure you want to delete {selectedPhoto.FileName}?",
-            PrimaryButtonText = "Delete",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = Content.XamlRoot
-        };
-
-        var result = await dialog.ShowAsync();
-        if (result != ContentDialogResult.Primary)
-        {
-            return;
-        }
-        var file = await StorageFile.GetFileFromPathAsync(selectedPhoto.FilePath);
-        await file.DeleteAsync();
-        PhotoCollection.Remove(selectedPhoto);
+        SelectedItem = null;
+        PreviewImage.Source = null;
     }
 }

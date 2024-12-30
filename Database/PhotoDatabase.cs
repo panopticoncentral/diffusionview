@@ -2,12 +2,12 @@
 using System.IO;
 using System;
 
-namespace DiffusionView.PhotoService;
+namespace DiffusionView.Database;
 
 public sealed partial class PhotoDatabase : DbContext
 {
-    public DbSet<StoredFolder> Folders { get; set; }
-    public DbSet<StoredPhoto> Photos { get; set; }
+    public DbSet<Folder> Folders { get; set; }
+    public DbSet<Photo> Photos { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
@@ -24,12 +24,12 @@ public sealed partial class PhotoDatabase : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<StoredFolder>()
+        modelBuilder.Entity<Folder>()
             .HasIndex(f => f.Path)
             .IsUnique();
 
-        modelBuilder.Entity<StoredPhoto>()
-            .HasIndex(p => p.FilePath)
+        modelBuilder.Entity<Photo>()
+            .HasIndex(p => p.Path)
             .IsUnique();
     }
 }

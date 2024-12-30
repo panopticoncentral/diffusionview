@@ -1,4 +1,4 @@
-﻿namespace DiffusionView.PhotoService;
+﻿namespace DiffusionView.Service;
 
 public enum FileChangeType
 {

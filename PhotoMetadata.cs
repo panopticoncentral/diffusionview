@@ -1,5 +1,4 @@
-﻿using static DiffusionView.MainWindow;
-using System;
+﻿using System;
 
 namespace DiffusionView;
 

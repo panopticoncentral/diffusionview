@@ -73,7 +73,7 @@
 
                 <ScrollViewer Padding="8,0,8,8"
                               Background="{ThemeResource CardStrokeColorDefaultBrush}">
-                    <ItemsRepeater ItemsSource="{x:Bind PhotoCollection}">
+                    <ItemsRepeater ItemsSource="{x:Bind _currentPhotos}">
                         <ItemsRepeater.Layout>
                             <local:PhotoGalleryLayout DesiredHeight="200" Spacing="4"/>
                         </ItemsRepeater.Layout>
