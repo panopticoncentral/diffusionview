@@ -12,6 +12,7 @@ using Windows.System;
 using DiffusionView.Service;
 using WinRT.Interop;
 using System.Collections.Generic;
+using System.IO;
 
 namespace DiffusionView;
 
@@ -128,9 +129,10 @@ public sealed partial class MainWindow
 
     private void PhotoService_PhotoRemoved(object _, PhotoChangedEventArgs e)
     {
-        if (_currentFolder == null || !e.Photo.Path.StartsWith(_currentFolder)) return;
+        if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
         DispatcherQueue.TryEnqueue(() =>
         {
+            if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
             var photo = _currentPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
             if (photo == null) return;
             if (SelectedItem == photo)
@@ -143,10 +145,10 @@ public sealed partial class MainWindow
 
     private void PhotoService_PhotoAdded(object _, PhotoChangedEventArgs e)
     {
-        if (_currentFolder == null || e.Photo.Path != _currentFolder) return;
+        if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
         DispatcherQueue.TryEnqueue(() =>
         {
-            if (_currentFolder == null || e.Photo.Path != _currentFolder) return;
+            if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
             var photo = new PhotoItem
             {
                 FileName = e.Photo.Name,
@@ -182,8 +184,17 @@ public sealed partial class MainWindow
 
     private void PhotoItem_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { DataContext: PhotoItem photo }) return;
+        if (sender is not Button { DataContext: PhotoItem photo } button) return;
+
+        if (SelectedItem != null)
+        {
+            SelectedItem.IsSelected = false;
+            SelectedItem.UpdateVisualState(button);
+        }
+
         SelectedItem = photo;
+        photo.IsSelected = true;
+        photo.UpdateVisualState(button);
     }
 
     private async void OpenButton_Click(object sender, RoutedEventArgs e)

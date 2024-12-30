@@ -14,6 +14,7 @@ using Windows.Storage;
 using System.Collections.Concurrent;
 using DiffusionView.Database;
 using System.Threading.Channels;
+using Windows.Graphics.Imaging;
 
 namespace DiffusionView.Service;
 
@@ -47,6 +48,31 @@ public sealed partial class PhotoService : IDisposable
     /*
      * File watching
      */
+    
+    public static async Task<byte[]> LoadScaledImageAsync(StorageFile sourceFile, uint targetHeight)
+    {
+        using var sourceStream = await sourceFile.OpenAsync(FileAccessMode.Read);
+        var decoder = await BitmapDecoder.CreateAsync(sourceStream);
+
+        var aspectRatio = (double)decoder.PixelWidth / decoder.PixelHeight;
+        var newWidth = (uint)(targetHeight * aspectRatio);
+
+        using var resizedStream = new InMemoryRandomAccessStream();
+
+        var encoder = await BitmapEncoder.CreateForTranscodingAsync(resizedStream, decoder);
+
+        encoder.BitmapTransform.ScaledHeight = targetHeight;
+        encoder.BitmapTransform.ScaledWidth = newWidth;
+
+        encoder.BitmapTransform.InterpolationMode = BitmapInterpolationMode.Fant;
+
+        await encoder.FlushAsync();
+
+        var bytes = new byte[resizedStream.Size];
+        await resizedStream.ReadAsync(bytes.AsBuffer(), (uint)resizedStream.Size, InputStreamOptions.None);
+
+        return bytes;
+    }
 
     private async Task HandleFileChangeAsync(string path, FileChangeType changeType)
     {
@@ -86,11 +112,7 @@ public sealed partial class PhotoService : IDisposable
                     photo.Height = (int)imageProps.Height;
                     photo.LastModified = props.DateModified.DateTime;
 
-                    using var thumbnail = await file.GetThumbnailAsync(ThumbnailMode.PicturesView, 200);
-                    await using var stream = thumbnail.AsStreamForRead();
-                    var bytes = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(bytes);
-                    photo.ThumbnailData = bytes;
+                    photo.ThumbnailData = await LoadScaledImageAsync(file, 200);
 
                     await _db.SaveChangesAsync();
 
@@ -162,7 +184,11 @@ public sealed partial class PhotoService : IDisposable
         var files = await query.GetFilesAsync();
         foreach (var file in files)
         {
-            await HandleFileChangeAsync(file.Path, FileChangeType.Created);
+            var photo = await _db.Photos.FirstOrDefaultAsync(p => p.Path == file.Path);
+            if (photo == null)
+            {
+                await HandleFileChangeAsync(file.Path, FileChangeType.Created);
+            }
         }
     }
 

@@ -80,7 +80,7 @@
 
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="local:PhotoItem">
-                                <Button Background="Transparent" BorderThickness="0" Padding="0" Click="PhotoItem_Click">
+                                <Button x:Name="ImageButton" Background="Transparent" BorderThickness="0" Padding="0" Click="PhotoItem_Click">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Grid Height="200" Margin="4">
@@ -116,15 +116,9 @@
                                                     </VisualStateGroup>
                                                 </VisualStateManager.VisualStateGroups>
 
-                                                <Viewbox Height="200" StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
-                                                    <Grid>
-                                                        <Image Source="{Binding Thumbnail, Mode=OneWay}" Stretch="Uniform"/>
-                                                        <Border x:Name="HoverBorder" Background="{ThemeResource SystemBaseLowColor}" Opacity="0"/>
-                                                        <Border x:Name="SelectionBorder" BorderBrush="{ThemeResource SystemAccentColor}" BorderThickness="3" Visibility="Collapsed"/>
-                                                    </Grid>
-                                                </Viewbox>
-                                                <TextBlock Text="{Binding FileName, Mode=OneWay}" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Bottom" Margin="8,4" Padding="4"/>
-                                                <ProgressRing IsActive="{Binding IsLoading, Mode=OneWay}" Width="32" Height="32" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                <Image Source="{Binding Thumbnail, Mode=OneWay}" Stretch="UniformToFill"/>
+                                                <Border x:Name="HoverBorder" Background="{ThemeResource SystemBaseLowColor}" Opacity="0"/>
+                                                <Border x:Name="SelectionBorder" BorderBrush="{ThemeResource SystemAccentColor}" BorderThickness="3" Visibility="Collapsed"/>
                                             </Grid>
                                         </ControlTemplate>
                                     </Button.Template>

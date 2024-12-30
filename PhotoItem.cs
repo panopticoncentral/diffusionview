@@ -2,6 +2,8 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml;
 
 namespace DiffusionView;
 
@@ -78,5 +80,15 @@ public partial class PhotoItem : INotifyPropertyChanged
         if (Equals(storage, value)) return;
         storage = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    public void UpdateVisualState(FrameworkElement element)
+    {
+        if (element == null) return;
+
+        var button = element.FindName("ImageButton") as Button;
+        if (button == null) return;
+
+        VisualStateManager.GoToState(button, IsSelected ? "Selected" : "Unselected", true);
     }
 }
