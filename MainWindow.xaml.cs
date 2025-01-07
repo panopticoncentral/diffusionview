@@ -23,9 +23,9 @@ public sealed partial class MainWindow
     private string _currentFolder;
     private readonly ObservableCollection<PhotoItem> _currentPhotos = [];
 
-    private PhotoItem _selectedItem;
+    private Button _selectedItem;
 
-    private PhotoItem SelectedItem
+    private Button SelectedItem
     {
         get => _selectedItem;
         set
@@ -37,18 +37,23 @@ public sealed partial class MainWindow
 
             if (_selectedItem != null)
             {
-                _selectedItem.IsSelected = false;
+                var photo = (PhotoItem)_selectedItem.DataContext;
+                if (photo != null)
+                {
+                    photo.IsSelected = false;
+                    photo.UpdateVisualState(_selectedItem);
+                }
             }
 
             _selectedItem = value;
 
-            if (_selectedItem == null)
+            if (_selectedItem != null)
             {
-                return;
+                var photo = (PhotoItem)_selectedItem.DataContext;
+                photo.IsSelected = true;
+                photo.UpdateVisualState(_selectedItem);
+                UpdatePreviewPane(photo);
             }
-
-            _selectedItem.IsSelected = true;
-            UpdatePreviewPane(_selectedItem);
         }
     }
 
@@ -135,7 +140,7 @@ public sealed partial class MainWindow
             if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
             var photo = _currentPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
             if (photo == null) return;
-            if (SelectedItem == photo)
+            if (SelectedItem.DataContext == photo)
             {
                 SelectedItem = null;
             }
@@ -186,15 +191,7 @@ public sealed partial class MainWindow
     {
         if (sender is not Button { DataContext: PhotoItem photo } button) return;
 
-        if (SelectedItem != null)
-        {
-            SelectedItem.IsSelected = false;
-            SelectedItem.UpdateVisualState(button);
-        }
-
-        SelectedItem = photo;
-        photo.IsSelected = true;
-        photo.UpdateVisualState(button);
+        SelectedItem = button;
     }
 
     private async void OpenButton_Click(object sender, RoutedEventArgs e)
@@ -203,7 +200,7 @@ public sealed partial class MainWindow
         {
             if (SelectedItem is not { } selectedPhoto) return;
     
-            var file = await StorageFile.GetFileFromPathAsync(selectedPhoto.FilePath);
+            var file = await StorageFile.GetFileFromPathAsync(((PhotoItem)selectedPhoto.DataContext).FilePath);
             await Launcher.LaunchFileAsync(file);
         }
         catch (Exception)
@@ -221,7 +218,7 @@ public sealed partial class MainWindow
             var dialog = new ContentDialog
             {
                 Title = "Delete Photo",
-                Content = $"Are you sure you want to delete {selectedPhoto.FileName}?",
+                Content = $"Are you sure you want to delete {((PhotoItem)selectedPhoto.DataContext).FileName}?",
                 PrimaryButtonText = "Delete",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,
@@ -231,7 +228,7 @@ public sealed partial class MainWindow
             var result = await dialog.ShowAsync();
             if (result != ContentDialogResult.Primary) return;
 
-            var file = await StorageFile.GetFileFromPathAsync(selectedPhoto.FilePath);
+            var file = await StorageFile.GetFileFromPathAsync(((PhotoItem)selectedPhoto.DataContext).FilePath);
             await file.DeleteAsync();
         }
         catch (Exception)

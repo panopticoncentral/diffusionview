@@ -83,11 +83,7 @@
                                 <Button x:Name="ImageButton" Background="Transparent" BorderThickness="0" Padding="0" Click="PhotoItem_Click">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Grid Height="200" Margin="4">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-
+                                            <Grid Margin="4">
                                                 <VisualStateManager.VisualStateGroups>
                                                     <VisualStateGroup x:Name="SelectionStates">
                                                         <VisualState x:Name="Selected">
@@ -118,7 +114,8 @@
 
                                                 <Image Source="{Binding Thumbnail, Mode=OneWay}" Stretch="UniformToFill"/>
                                                 <Border x:Name="HoverBorder" Background="{ThemeResource SystemBaseLowColor}" Opacity="0"/>
-                                                <Border x:Name="SelectionBorder" BorderBrush="{ThemeResource SystemAccentColor}" BorderThickness="3" Visibility="Collapsed"/>
+                                                <Border x:Name="SelectionBorder" BorderBrush="{ThemeResource SystemAccentColor}" BorderThickness="3" Visibility="Collapsed">
+                                                </Border>
                                             </Grid>
                                         </ControlTemplate>
                                     </Button.Template>
