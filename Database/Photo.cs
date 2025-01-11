@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Generic;
 
 namespace DiffusionView.Database;
 
@@ -20,4 +21,19 @@ public sealed class Photo
     public int Height { get; set; }
     public byte[] ThumbnailData { get; set; }
     public DateTime LastModified { get; set; }
+    [MaxLength(1024)]
+    public string Prompt { get; set; }
+    [MaxLength(1024)]
+    public string NegativePrompt { get; set; }
+    public int Steps { get; set; }
+    [MaxLength(64)]
+    public string Sampler { get; set; }
+    public double CfgScale { get; set; }
+    public long Seed { get; set; }
+    [MaxLength(256)]
+    public string Model { get; set; }
+    public long ModelHash { get; set; }
+    [MaxLength(64)]
+    public string Version { get; set; }
+    public Dictionary<string, string> OtherParameters { get; set; } = new();
 }

@@ -54,7 +54,6 @@
                         ItemInvoked="NavView_ItemInvoked">
 
             <NavigationView.MenuItems>
-                <NavigationViewItem Icon="Folder" Content="All Photos" />
                 <NavigationViewItemHeader Content="Folders" />
             </NavigationView.MenuItems>
 
@@ -75,7 +74,7 @@
                               Background="{ThemeResource CardStrokeColorDefaultBrush}">
                     <ItemsRepeater ItemsSource="{x:Bind _currentPhotos}">
                         <ItemsRepeater.Layout>
-                            <local:PhotoGalleryLayout DesiredHeight="200" Spacing="4"/>
+                            <local:PhotoGalleryLayout DesiredHeight="300" Spacing="4"/>
                         </ItemsRepeater.Layout>
 
                         <ItemsRepeater.ItemTemplate>
@@ -112,10 +111,11 @@
                                                     </VisualStateGroup>
                                                 </VisualStateManager.VisualStateGroups>
 
-                                                <Image Source="{Binding Thumbnail, Mode=OneWay}" Stretch="UniformToFill"/>
-                                                <Border x:Name="HoverBorder" Background="{ThemeResource SystemBaseLowColor}" Opacity="0"/>
-                                                <Border x:Name="SelectionBorder" BorderBrush="{ThemeResource SystemAccentColor}" BorderThickness="3" Visibility="Collapsed">
-                                                </Border>
+                                                <Grid>
+                                                    <Image Source="{Binding Thumbnail, Mode=OneWay}" Stretch="UniformToFill"/>
+                                                    <Border x:Name="HoverBorder" Background="{ThemeResource SystemBaseLowColor}" Opacity="0"/>
+                                                    <Border x:Name="SelectionBorder" BorderBrush="{ThemeResource SystemAccentColor}" BorderThickness="3" Visibility="Collapsed"/>
+                                                </Grid>
                                             </Grid>
                                         </ControlTemplate>
                                     </Button.Template>

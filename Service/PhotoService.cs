@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.UI.Xaml.Media.Imaging;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,14 +6,17 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
-using Windows.Storage.FileProperties;
 using Windows.Storage.Search;
 using Windows.Storage.Streams;
 using Windows.Storage;
 using System.Collections.Concurrent;
+using System.Globalization;
 using DiffusionView.Database;
 using System.Threading.Channels;
 using Windows.Graphics.Imaging;
+using MetadataExtractor;
+using MetadataExtractor.Formats.Png;
+using Directory = System.IO.Directory;
 
 namespace DiffusionView.Service;
 
@@ -23,7 +25,9 @@ public sealed partial class PhotoService : IDisposable
     private readonly PhotoDatabase _db = new();
     private readonly ConcurrentDictionary<string, FileSystemWatcher> _watchers = new();
     private readonly Channel<string> _scanQueue;
-    private readonly Task _processingTask;
+    private readonly Channel<(string Path, int PhotoId)> _thumbnailQueue;
+    private readonly Task _scanProcessingTask;
+    private readonly Task _thumbnailProcessingTask;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private bool _disposed;
 
@@ -31,18 +35,24 @@ public sealed partial class PhotoService : IDisposable
     public event EventHandler<FolderChangedEventArgs> FolderRemoved;
     public event EventHandler<PhotoChangedEventArgs> PhotoAdded;
     public event EventHandler<PhotoChangedEventArgs> PhotoRemoved;
+    public event EventHandler<PhotoChangedEventArgs> ThumbnailLoaded;
 
     public PhotoService()
     {
-        // Create an unbounded channel for scan requests
         _scanQueue = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
         {
             SingleReader = true,
             SingleWriter = false
         });
 
-        // Start the background processing task
-        _processingTask = ProcessScanQueueAsync(_cancellationTokenSource.Token);
+        _thumbnailQueue = Channel.CreateUnbounded<(string, int)>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false
+        });
+
+        _scanProcessingTask = ProcessScanQueueAsync(_cancellationTokenSource.Token);
+        _thumbnailProcessingTask = ProcessThumbnailQueueAsync(_cancellationTokenSource.Token);
     }
 
     /*
@@ -72,6 +82,118 @@ public sealed partial class PhotoService : IDisposable
         await resizedStream.ReadAsync(bytes.AsBuffer(), (uint)resizedStream.Size, InputStreamOptions.None);
 
         return bytes;
+    }
+
+    public static void ExtractMetadata(Stream stream, Photo photo)
+    {
+        var directories = ImageMetadataReader.ReadMetadata(stream);
+
+        var textDirectories = directories.OfType<PngDirectory>().Where(d => d.Name == "PNG-tEXt").ToList();
+        if (textDirectories.Count != 1) throw new FormatException();
+
+        var textChunks = textDirectories.First().Tags
+            .Where(t => t.Type == PngDirectory.TagTextualData)
+            .Select(t => t.Description)
+            .ToList();
+
+        if (textChunks.Count != 1) throw new FormatException();
+
+        var lines = textChunks.First().Split(['\n'], StringSplitOptions.RemoveEmptyEntries);
+        var currentLine = 0;
+
+        var promptKeyValue = lines[currentLine].Split(':', 2);
+        if (promptKeyValue.Length != 2) throw new FormatException();
+        if (!promptKeyValue[0].Trim().ToLowerInvariant().Equals("parameters")) throw new FormatException();
+
+        var prompt = promptKeyValue[1].Trim();
+        currentLine++;
+
+        while (!lines[currentLine].StartsWith("negative prompt", StringComparison.InvariantCultureIgnoreCase) &&
+               !lines[currentLine].StartsWith("steps", StringComparison.InvariantCultureIgnoreCase))
+        {
+            prompt += $" {lines[currentLine].Trim()}";
+            currentLine++;
+        }
+        
+        photo.Prompt = prompt;
+
+        if (lines[currentLine].StartsWith("negative prompt", StringComparison.InvariantCultureIgnoreCase))
+        {
+            var negativePromptKeyValue = lines[currentLine].Split(':', 2);
+            if (negativePromptKeyValue.Length != 2) throw new FormatException();
+            if (negativePromptKeyValue[1].Trim().ToLowerInvariant().Equals("negative prompt")) throw new FormatException();
+
+            var negativePrompt = negativePromptKeyValue[1].Trim();
+            currentLine++;
+
+            while (!lines[currentLine].StartsWith("steps", StringComparison.InvariantCultureIgnoreCase))
+            {
+                prompt += $" {lines[currentLine].Trim()}";
+                currentLine++;
+            }
+
+            photo.NegativePrompt = negativePrompt;
+        }
+
+        var otherParameters = lines[currentLine].Split(',', StringSplitOptions.RemoveEmptyEntries);
+        if (otherParameters.Length == 0) throw new FormatException();
+
+        foreach (var parameter in otherParameters)
+        {
+            var parts = parameter.Split(':', 2);
+            if (parts.Length != 2) continue;
+
+            var key = parts[0].Trim().ToLowerInvariant();
+            var value = parts[1].Trim();
+
+            switch (key)
+            {
+                case "steps":
+                    if (!int.TryParse(value, out var steps)) throw new FormatException();
+                    photo.Steps = steps;
+                    break;
+                case "sampler":
+                    photo.Sampler = value;
+                    break;
+                case "cfg scale":
+                    if (!double.TryParse(value, out var cfgScale)) throw new FormatException();
+                    photo.CfgScale = cfgScale;
+                    break;
+                case "seed":
+                    if (!long.TryParse(value, NumberStyles.HexNumber, null, out var seed)) throw new FormatException();
+                    photo.Seed = seed;
+                    break;
+                case "size":
+                {
+                    var size = value.Split('x', 2);
+                    if (size.Length != 2) throw new FormatException();
+                    if (!int.TryParse(size[0], out var width)) throw new FormatException();
+                    if (photo.Width != width) throw new FormatException();
+                    if (!int.TryParse(size[1], out var height)) throw new FormatException();
+                    if (photo.Height != height) throw new FormatException();
+                    break;
+                }
+                case "model hash":
+                {
+                    if (!long.TryParse(value, NumberStyles.HexNumber, null, out var modelHash)) throw new FormatException();
+                    photo.ModelHash = modelHash;
+                    break;
+
+                }
+                case "model":
+                    photo.Model = value;
+                    break;
+                case "version":
+                    photo.Version = value;
+                    break;
+                default:
+                    photo.OtherParameters[key] = value;
+                    break;
+            }
+        }
+
+        currentLine++;
+        if (currentLine != lines.Length) throw new FormatException();
     }
 
     private async Task HandleFileChangeAsync(string path, FileChangeType changeType)
@@ -112,8 +234,9 @@ public sealed partial class PhotoService : IDisposable
                     photo.Height = (int)imageProps.Height;
                     photo.LastModified = props.DateModified.DateTime;
 
-                    photo.ThumbnailData = await LoadScaledImageAsync(file, 200);
-
+                    var stream = await file.OpenStreamForReadAsync();
+                    ExtractMetadata(stream, photo);
+                        
                     await _db.SaveChangesAsync();
 
                     if (!isNew)
@@ -122,6 +245,7 @@ public sealed partial class PhotoService : IDisposable
                     }
 
                     PhotoAdded?.Invoke(this, new PhotoChangedEventArgs(photo));
+                    _thumbnailQueue.Writer.TryWrite((path, photo.Id));
                     break;
                 }
 
@@ -189,6 +313,10 @@ public sealed partial class PhotoService : IDisposable
             {
                 await HandleFileChangeAsync(file.Path, FileChangeType.Created);
             }
+            else if (photo.ThumbnailData == null)
+            {
+                _thumbnailQueue.Writer.TryWrite((file.Path, photo.Id));
+            }
         }
     }
 
@@ -203,6 +331,51 @@ public sealed partial class PhotoService : IDisposable
                 try
                 {
                     await ScanFolderAsync(path);
+                }
+                catch (Exception)
+                {
+                    // Log error but continue processing queue
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal cancellation, no action needed
+        }
+    }
+
+    private async Task LoadThumbnailAsync(string path, int photoId)
+    {
+        try
+        {
+            var file = await StorageFile.GetFileFromPathAsync(path);
+            var photo = await _db.Photos.FindAsync(photoId);
+
+            if (photo == null) return;
+
+            var thumbnail = await LoadScaledImageAsync(file, 300);
+            photo.ThumbnailData = thumbnail;
+            await _db.SaveChangesAsync();
+
+            ThumbnailLoaded?.Invoke(this, new PhotoChangedEventArgs(photo));
+        }
+        catch (Exception)
+        {
+            // Log or handle the error appropriately
+        }
+    }
+
+    private async Task ProcessThumbnailQueueAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (var (path, photoId) in _thumbnailQueue.Reader.ReadAllAsync(cancellationToken))
+            {
+                if (cancellationToken.IsCancellationRequested) break;
+
+                try
+                {
+                    await LoadThumbnailAsync(path, photoId);
                 }
                 catch (Exception)
                 {
@@ -271,10 +444,7 @@ public sealed partial class PhotoService : IDisposable
 
         FolderAdded?.Invoke(this, new FolderChangedEventArgs(folder.Name, folderPath));
 
-        // Start watching the folder
         StartWatcher(folderPath);
-
-        // Queue initial scan
         QueueFolderScan(folderPath);
     }
 
@@ -282,22 +452,7 @@ public sealed partial class PhotoService : IDisposable
      * Get photos for folder
      */
 
-    private static BitmapImage CreateBitmapImage(byte[] data)
-    {
-        if (data == null)
-        {
-            return null;
-        }
-
-        var image = new BitmapImage();
-        using var stream = new InMemoryRandomAccessStream();
-        stream.WriteAsync(data.AsBuffer()).GetResults();
-        stream.Seek(0);
-        image.SetSource(stream);
-        return image;
-    }
-
-    public async Task<List<PhotoItem>> GetPhotosForFolderAsync(string folderPath)
+    public async Task<List<Photo>> GetPhotosForFolderAsync(string folderPath)
     {
         var photos = await _db.Photos
             .Where(p => p.Path.StartsWith(folderPath))
@@ -305,16 +460,7 @@ public sealed partial class PhotoService : IDisposable
 
         return photos
             .Where(p => Path.GetDirectoryName(p.Path) == folderPath)
-            .Select(p => new PhotoItem
-            {
-                FileName = p.Name,
-                FilePath = p.Path,
-                DateTaken = p.DateTaken,
-                FileSize = p.FileSize,
-                Width = p.Width,
-                Height = p.Height,
-                Thumbnail = CreateBitmapImage(p.ThumbnailData)
-            }).ToList();
+            .ToList();
     }
 
     /*
@@ -326,11 +472,10 @@ public sealed partial class PhotoService : IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        // Cancel the processing task
         _cancellationTokenSource.Cancel();
         try
         {
-            _processingTask.Wait();
+            Task.WaitAll(_scanProcessingTask, _thumbnailProcessingTask);
         }
         catch (AggregateException)
         {
@@ -338,7 +483,6 @@ public sealed partial class PhotoService : IDisposable
         }
         _cancellationTokenSource.Dispose();
 
-        // Clean up watchers
         foreach (var watcher in _watchers.Values)
         {
             watcher.EnableRaisingEvents = false;
@@ -346,7 +490,6 @@ public sealed partial class PhotoService : IDisposable
         }
         _watchers.Clear();
 
-        // Dispose database
         _db.Dispose();
     }
 }

@@ -5,7 +5,7 @@ using Windows.Foundation;
 
 namespace DiffusionView;
 
-public class PhotoGalleryLayout : VirtualizingLayout
+public partial class PhotoGalleryLayout : VirtualizingLayout
 {
     private readonly Dictionary<int, Rect> _elementBounds = new();
 
@@ -17,7 +17,7 @@ public class PhotoGalleryLayout : VirtualizingLayout
 
     public static readonly DependencyProperty DesiredHeightProperty =
         DependencyProperty.Register(nameof(DesiredHeight), typeof(double), typeof(PhotoGalleryLayout),
-            new PropertyMetadata(200d, (s, e) => ((PhotoGalleryLayout)s).InvalidateMeasure()));
+            new PropertyMetadata(300d, (s, e) => ((PhotoGalleryLayout)s).InvalidateMeasure()));
 
     public double Spacing
     {
@@ -38,7 +38,6 @@ public class PhotoGalleryLayout : VirtualizingLayout
         var items = new List<(int Index, UIElement Element, double AspectRatio)>();
         var currentIndex = 0;
 
-        // Collect items and their aspect ratios
         while (currentIndex < context.ItemCount)
         {
             var element = context.GetOrCreateElementAt(currentIndex) as FrameworkElement;
@@ -70,18 +69,15 @@ public class PhotoGalleryLayout : VirtualizingLayout
             }
             else
             {
-                // Layout current row
                 LayoutRow(currentRow, availableSize.Width, DesiredHeight, totalHeight);
                 totalHeight += DesiredHeight + Spacing;
 
-                // Start new row
                 currentRow.Clear();
                 currentRow.Add(item);
                 remainingWidth = availableSize.Width - (idealWidth + Spacing);
             }
         }
 
-        // Layout last row if any items remain
         if (currentRow.Count == 0) return new Size(availableSize.Width, totalHeight);
 
         LayoutRow(currentRow, availableSize.Width, DesiredHeight, totalHeight);

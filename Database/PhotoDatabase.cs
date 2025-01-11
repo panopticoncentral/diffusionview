@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.IO;
 using System;
+using System.Collections.Generic;
+using System.Text.Json;
 
 namespace DiffusionView.Database;
 
@@ -31,5 +33,12 @@ public sealed partial class PhotoDatabase : DbContext
         modelBuilder.Entity<Photo>()
             .HasIndex(p => p.Path)
             .IsUnique();
+
+        modelBuilder.Entity<Photo>()
+            .Property(e => e.OtherParameters)
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                v => JsonSerializer.Deserialize<Dictionary<string, string>>(v, (JsonSerializerOptions)null)
+            );
     }
 }

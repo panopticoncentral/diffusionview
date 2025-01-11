@@ -37,23 +37,23 @@ public sealed partial class MainWindow
 
             if (_selectedItem != null)
             {
-                var photo = (PhotoItem)_selectedItem.DataContext;
-                if (photo != null)
+                var previousPhoto = (PhotoItem)_selectedItem.DataContext;
+                if (previousPhoto != null)
                 {
-                    photo.IsSelected = false;
-                    photo.UpdateVisualState(_selectedItem);
+                    previousPhoto.IsSelected = false;
+                    previousPhoto.UpdateVisualState(_selectedItem);
+                    UpdatePreviewPane(null);
                 }
             }
 
             _selectedItem = value;
 
-            if (_selectedItem != null)
-            {
-                var photo = (PhotoItem)_selectedItem.DataContext;
-                photo.IsSelected = true;
-                photo.UpdateVisualState(_selectedItem);
-                UpdatePreviewPane(photo);
-            }
+            if (_selectedItem == null) return;
+
+            var photo = (PhotoItem)_selectedItem.DataContext;
+            photo.IsSelected = true;
+            photo.UpdateVisualState(_selectedItem);
+            UpdatePreviewPane(photo);
         }
     }
 
@@ -67,11 +67,13 @@ public sealed partial class MainWindow
         _photoService.FolderRemoved += PhotoService_FolderRemoved;
         _photoService.PhotoAdded += PhotoService_PhotoAdded;
         _photoService.PhotoRemoved += PhotoService_PhotoRemoved;
+        _photoService.ThumbnailLoaded += PhotoService_ThumbnailLoaded;
         _photoService.Initialize();
     }
 
     private void PhotoService_FolderAdded(object _, FolderChangedEventArgs e)
     {
+        if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(async void () =>
         {
             try
@@ -115,6 +117,7 @@ public sealed partial class MainWindow
 
     private void PhotoService_FolderRemoved(object _, FolderChangedEventArgs e)
     {
+        if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
             if (_currentFolder == e.Path)
@@ -135,6 +138,7 @@ public sealed partial class MainWindow
     private void PhotoService_PhotoRemoved(object _, PhotoChangedEventArgs e)
     {
         if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
+        if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
             if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
@@ -151,6 +155,7 @@ public sealed partial class MainWindow
     private void PhotoService_PhotoAdded(object _, PhotoChangedEventArgs e)
     {
         if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
+        if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
             if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
@@ -162,9 +167,21 @@ public sealed partial class MainWindow
                 FileSize = e.Photo.FileSize,
                 Width = e.Photo.Width,
                 Height = e.Photo.Height,
-                Thumbnail = CreateBitmapImage(e.Photo.ThumbnailData)
+                Thumbnail = e.Photo.ThumbnailData != null ? CreateBitmapImage(e.Photo.ThumbnailData) : null
             };
             _currentPhotos.Add(photo);
+        });
+    }
+
+    private void PhotoService_ThumbnailLoaded(object _, PhotoChangedEventArgs e)
+    {
+        if (DispatcherQueue == null) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var photo = _currentPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
+            if (photo == null) return;
+
+            photo.Thumbnail = CreateBitmapImage(e.Photo.ThumbnailData);
         });
     }
 
@@ -236,7 +253,7 @@ public sealed partial class MainWindow
             // For the moment, ignore exceptions
         }
     }
-
+    
     private static async Task AddSubFolderItemsAsync(NavigationViewItem parentItem, IReadOnlyList<StorageFolder> folders)
     {
         foreach (var folder in folders)
@@ -299,6 +316,10 @@ public sealed partial class MainWindow
         if (photo == null)
         {
             PreviewImage.Source = null;
+            FileNameText.Text = "";
+            DateTakenText.Text = "";
+            SizeText.Text = "";
+            ResolutionText.Text = "";
             return;
         }
 
@@ -340,9 +361,21 @@ public sealed partial class MainWindow
         var folderPath = (string)folderViewItem.Tag;
         if (string.IsNullOrEmpty(folderPath)) return;
 
+        SelectedItem = null;
         _currentFolder = folderPath;
         _currentPhotos.Clear();
-        var photos = await _photoService.GetPhotosForFolderAsync(folderPath);
+        var photos = (await _photoService.GetPhotosForFolderAsync(folderPath))
+            .Select(p => new PhotoItem
+            {
+                FileName = p.Name,
+                FilePath = p.Path,
+                DateTaken = p.DateTaken,
+                FileSize = p.FileSize,
+                Width = p.Width,
+                Height = p.Height,
+                Thumbnail = p.ThumbnailData != null ? CreateBitmapImage(p.ThumbnailData) : null
+            });
+
         foreach (var photo in photos)
         {
             _currentPhotos.Add(photo);

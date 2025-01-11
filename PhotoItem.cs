@@ -15,7 +15,6 @@ public partial class PhotoItem : INotifyPropertyChanged
     private ulong _fileSize;
     private int _width;
     private int _height;
-    private bool _isLoading;
     private BitmapImage _thumbnail;
     private bool _isSelected;
 
@@ -61,17 +60,13 @@ public partial class PhotoItem : INotifyPropertyChanged
         set => SetProperty(ref _height, value);
     }
 
-    public bool IsLoading
-    {
-        get => _isLoading;
-        set => SetProperty(ref _isLoading, value);
-    }
-
     public BitmapImage Thumbnail
     {
         get => _thumbnail;
         set => SetProperty(ref _thumbnail, value);
     }
+
+    public int ThumbnailWidth => (int)((double)Width / Height) * 300;
 
     public event PropertyChangedEventHandler PropertyChanged;
 
