@@ -70,60 +70,80 @@
                     <ColumnDefinition Width="320" MinWidth="200"/>
                 </Grid.ColumnDefinitions>
 
-                <ScrollViewer Padding="8,0,8,8"
+                <Grid Grid.Column="0">
+                    <ScrollViewer x:Name="GridView"
+                              Padding="8,0,8,8"
                               Background="{ThemeResource CardStrokeColorDefaultBrush}">
-                    <ItemsRepeater ItemsSource="{x:Bind _currentPhotos}">
-                        <ItemsRepeater.Layout>
-                            <local:PhotoGalleryLayout DesiredHeight="300" Spacing="4"/>
-                        </ItemsRepeater.Layout>
+                        <ItemsRepeater ItemsSource="{x:Bind _currentPhotos}">
+                            <ItemsRepeater.Layout>
+                                <local:PhotoGalleryLayout DesiredHeight="300" Spacing="4"/>
+                            </ItemsRepeater.Layout>
 
-                        <ItemsRepeater.ItemTemplate>
-                            <DataTemplate x:DataType="local:PhotoItem">
-                                <Button x:Name="ImageButton" Background="Transparent" BorderThickness="0" Padding="0" Click="PhotoItem_Click">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Grid Margin="4">
-                                                <VisualStateManager.VisualStateGroups>
-                                                    <VisualStateGroup x:Name="SelectionStates">
-                                                        <VisualState x:Name="Selected">
-                                                            <VisualState.Setters>
-                                                                <Setter Target="SelectionBorder.Visibility" Value="Visible"/>
-                                                            </VisualState.Setters>
-                                                        </VisualState>
-                                                        <VisualState x:Name="Unselected">
-                                                            <VisualState.Setters>
-                                                                <Setter Target="SelectionBorder.Visibility" Value="Collapsed"/>
-                                                            </VisualState.Setters>
-                                                        </VisualState>
-                                                    </VisualStateGroup>
-                                                    <VisualStateGroup x:Name="CommonStates">
-                                                        <VisualState x:Name="Normal" />
-                                                        <VisualState x:Name="PointerOver">
-                                                            <VisualState.Setters>
-                                                                <Setter Target="HoverBorder.Opacity" Value="1"/>
-                                                            </VisualState.Setters>
-                                                        </VisualState>
-                                                        <VisualState x:Name="Pressed">
-                                                            <VisualState.Setters>
-                                                                <Setter Target="HoverBorder.Opacity" Value="0.8"/>
-                                                            </VisualState.Setters>
-                                                        </VisualState>
-                                                    </VisualStateGroup>
-                                                </VisualStateManager.VisualStateGroups>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="local:PhotoItem">
+                                    <Button x:Name="ImageButton" Background="Transparent" BorderThickness="0" Padding="0" Click="PhotoItem_Click" DoubleTapped="PhotoItem_DoubleTapped">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Grid Margin="4">
+                                                    <VisualStateManager.VisualStateGroups>
+                                                        <VisualStateGroup x:Name="SelectionStates">
+                                                            <VisualState x:Name="Selected">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="SelectionBorder.Visibility" Value="Visible"/>
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                            <VisualState x:Name="Unselected">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="SelectionBorder.Visibility" Value="Collapsed"/>
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                        </VisualStateGroup>
+                                                        <VisualStateGroup x:Name="CommonStates">
+                                                            <VisualState x:Name="Normal" />
+                                                            <VisualState x:Name="PointerOver">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="HoverBorder.Opacity" Value="1"/>
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                            <VisualState x:Name="Pressed">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="HoverBorder.Opacity" Value="0.8"/>
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                        </VisualStateGroup>
+                                                    </VisualStateManager.VisualStateGroups>
 
-                                                <Grid>
-                                                    <Image Source="{Binding Thumbnail, Mode=OneWay}" Stretch="UniformToFill"/>
-                                                    <Border x:Name="HoverBorder" Background="{ThemeResource SystemBaseLowColor}" Opacity="0"/>
-                                                    <Border x:Name="SelectionBorder" BorderBrush="{ThemeResource SystemAccentColor}" BorderThickness="3" Visibility="Collapsed"/>
+                                                    <Grid>
+                                                        <Image Source="{Binding Thumbnail, Mode=OneWay}" Stretch="UniformToFill"/>
+                                                        <Border x:Name="HoverBorder" Background="{ThemeResource SystemBaseLowColor}" Opacity="0"/>
+                                                        <Border x:Name="SelectionBorder" BorderBrush="{ThemeResource SystemAccentColor}" BorderThickness="3" Visibility="Collapsed"/>
+                                                    </Grid>
                                                 </Grid>
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsRepeater.ItemTemplate>
-                    </ItemsRepeater>
-                </ScrollViewer>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </ScrollViewer>
+
+                    <Grid x:Name="SinglePhotoView" Visibility="Collapsed">
+                        <Button x:Name="BackToGridButton"
+                                VerticalAlignment="Top"
+                                HorizontalAlignment="Left"
+                                Margin="8"
+                                Click="BackToGridButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE72B;"/>
+                                <TextBlock Text="Back to Grid" />
+                            </StackPanel>
+                        </Button>
+
+                        <Image x:Name="SinglePhotoImage"
+                               Margin="48"
+                               Stretch="Uniform"/>
+                    </Grid>
+                </Grid>
 
                 <controls:GridSplitter Grid.Column="1"
                                        Background="{ThemeResource SystemControlForegroundChromeMediumBrush}"

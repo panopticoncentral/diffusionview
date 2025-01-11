@@ -211,6 +211,38 @@ public sealed partial class MainWindow
         SelectedItem = button;
     }
 
+    private void PhotoItem_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: PhotoItem photo } button) return;
+
+        SelectedItem = button;
+        SwitchToSinglePhotoView();
+    }
+
+    private void SwitchToSinglePhotoView()
+    {
+        if (SelectedItem?.DataContext is not PhotoItem photo) return;
+
+        try
+        {
+            var bitmap = new BitmapImage(new Uri(photo.FilePath));
+            SinglePhotoImage.Source = bitmap;
+
+            GridView.Visibility = Visibility.Collapsed;
+            SinglePhotoView.Visibility = Visibility.Visible;
+        }
+        catch (Exception)
+        {
+            SinglePhotoImage.Source = photo.Thumbnail;
+        }
+    }
+
+    private void BackToGridButton_Click(object sender, RoutedEventArgs e)
+    {
+        GridView.Visibility = Visibility.Visible;
+        SinglePhotoView.Visibility = Visibility.Collapsed;
+    }
+
     private async void OpenButton_Click(object sender, RoutedEventArgs e)
     {
         try
