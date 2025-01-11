@@ -233,24 +233,117 @@ public sealed partial class MainWindow
         SwitchToSinglePhotoView();
     }
 
-    private void SwitchToSinglePhotoView()
+    // Handles the previous button click in single photo view
+    private void PreviousButton_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem?.DataContext is not PhotoItem photo) return;
+        if (SelectedItem?.DataContext is not PhotoItem currentPhoto) return;
 
+        // Find the current index in the photo collection
+        var currentIndex = _currentPhotos.IndexOf(currentPhoto);
+
+        // Calculate the previous index, wrapping around to the end if necessary
+        var previousIndex = currentIndex - 1;
+        if (previousIndex < 0)
+        {
+            previousIndex = _currentPhotos.Count - 1;
+        }
+
+        // Find the button associated with the previous photo
+        var photoButton = GetButtonForItem(_currentPhotos[previousIndex]);
+        if (photoButton != null)
+        {
+            // Update selection and view
+            SelectedItem = photoButton;
+            UpdateSinglePhotoView(_currentPhotos[previousIndex]);
+        }
+    }
+
+    // Handles the next button click in single photo view
+    private void NextButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedItem?.DataContext is not PhotoItem currentPhoto) return;
+
+        // Find the current index in the photo collection
+        var currentIndex = _currentPhotos.IndexOf(currentPhoto);
+
+        // Calculate the next index, wrapping around to the start if necessary
+        var nextIndex = (currentIndex + 1) % _currentPhotos.Count;
+
+        // Find the button associated with the next photo
+        var photoButton = GetButtonForItem(_currentPhotos[nextIndex]);
+        if (photoButton != null)
+        {
+            // Update selection and view
+            SelectedItem = photoButton;
+            UpdateSinglePhotoView(_currentPhotos[nextIndex]);
+        }
+    }
+
+    // Helper method to find the Button associated with a PhotoItem
+    private Button GetButtonForItem(PhotoItem photo)
+    {
+        // If we have an ItemsRepeater, we can search through its realized elements
+        if (GridView.Content is not ItemsRepeater repeater) return null;
+
+        // Look through all realized elements to find the one matching our photo
+        for (var i = 0; i < _currentPhotos.Count; i++)
+        {
+            var element = repeater.TryGetElement(i) as Button;
+            if (element?.DataContext == photo)
+            {
+                return element;
+            }
+        }
+
+        // If we couldn't find the button (item might not be realized), create a new one
+        return new Button
+        {
+            DataContext = photo
+        };
+    }
+
+    // Helper method to update the single photo view with a new photo
+    private void UpdateSinglePhotoView(PhotoItem photo)
+    {
         try
         {
+            // Load and display the full-resolution image
             var bitmap = new BitmapImage(new Uri(photo.FilePath));
             SinglePhotoImage.Source = bitmap;
 
-            GridView.Visibility = Visibility.Collapsed;
-            SinglePhotoView.Visibility = Visibility.Visible;
+            // Update navigation button states
+            UpdateNavigationButtonStates();
         }
         catch (Exception)
         {
+            // If loading full resolution fails, fall back to thumbnail
             SinglePhotoImage.Source = photo.Thumbnail;
         }
     }
 
+    // Updates the enabled state of navigation buttons
+    private void UpdateNavigationButtonStates()
+    {
+        if (SelectedItem?.DataContext is not PhotoItem currentPhoto) return;
+
+        var currentIndex = _currentPhotos.IndexOf(currentPhoto);
+
+        // Enable/disable navigation buttons based on photo position and collection size
+        PreviousButton.IsEnabled = _currentPhotos.Count > 1;
+        NextButton.IsEnabled = _currentPhotos.Count > 1;
+    }
+
+    // Updated version of SwitchToSinglePhotoView to use the new helper method
+    private void SwitchToSinglePhotoView()
+    {
+        if (SelectedItem?.DataContext is not PhotoItem photo) return;
+
+        UpdateSinglePhotoView(photo);
+
+        // Switch visibility
+        GridView.Visibility = Visibility.Collapsed;
+        SinglePhotoView.Visibility = Visibility.Visible;
+    }
     private void BackToGridButton_Click(object sender, RoutedEventArgs e)
     {
         GridView.Visibility = Visibility.Visible;
