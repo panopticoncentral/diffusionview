@@ -161,13 +161,27 @@ public sealed partial class MainWindow
             if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
             var photo = new PhotoItem
             {
+                // Basic file properties
                 FileName = e.Photo.Name,
                 FilePath = e.Photo.Path,
                 DateTaken = e.Photo.DateTaken,
                 FileSize = e.Photo.FileSize,
                 Width = e.Photo.Width,
                 Height = e.Photo.Height,
-                Thumbnail = e.Photo.ThumbnailData != null ? CreateBitmapImage(e.Photo.ThumbnailData) : null
+                LastModified = e.Photo.LastModified,
+                Thumbnail = e.Photo.ThumbnailData != null ? CreateBitmapImage(e.Photo.ThumbnailData) : null,
+
+                // Stable Diffusion metadata
+                Prompt = e.Photo.Prompt,
+                NegativePrompt = e.Photo.NegativePrompt,
+                Steps = e.Photo.Steps,
+                Sampler = e.Photo.Sampler,
+                CfgScale = e.Photo.CfgScale,
+                Seed = e.Photo.Seed,
+                Model = e.Photo.Model,
+                ModelHash = e.Photo.ModelHash,
+                Version = e.Photo.Version,
+                OtherParameters = new Dictionary<string, string>(e.Photo.OtherParameters)
             };
             _currentPhotos.Add(photo);
         });
@@ -347,27 +361,66 @@ public sealed partial class MainWindow
     {
         if (photo == null)
         {
-            PreviewImage.Source = null;
+            // Clear all fields when no photo is selected
             FileNameText.Text = "";
-            DateTakenText.Text = "";
+            FilePathText.Text = "";
+            LastModifiedText.Text = "";
             SizeText.Text = "";
             ResolutionText.Text = "";
+            ModelText.Text = "";
+            ModelHashText.Text = "";
+            StepsText.Text = "";
+            CfgScaleText.Text = "";
+            SamplerText.Text = "";
+            SeedText.Text = "";
+            VersionText.Text = "";
+            PromptText.Text = "";
+            NegativePromptText.Text = "";
+            ExtraParametersPanel.Visibility = Visibility.Collapsed;
             return;
         }
 
         try
         {
-            var bitmap = new BitmapImage(new Uri(photo.FilePath));
-            PreviewImage.Source = bitmap;
-
+            // File Information
             FileNameText.Text = photo.FileName;
-            DateTakenText.Text = photo.DateTaken?.ToString("MMMM dd, yyyy") ?? "Unknown";
+            FilePathText.Text = photo.FilePath;
+            LastModifiedText.Text = photo.LastModified.ToString("g");
             SizeText.Text = FormatFileSize(photo.FileSize);
             ResolutionText.Text = $"{photo.Width} x {photo.Height}";
+
+            // Generation Parameters
+            ModelText.Text = photo.Model ?? "Unknown";
+            ModelHashText.Text = photo.ModelHash != 0 ? photo.ModelHash.ToString("X") : "Unknown";
+            StepsText.Text = photo.Steps != 0 ? photo.Steps.ToString() : "Unknown";
+            CfgScaleText.Text = photo.CfgScale != 0 ? photo.CfgScale.ToString("F1") : "Unknown";
+            SamplerText.Text = photo.Sampler ?? "Unknown";
+            SeedText.Text = photo.Seed != 0 ? photo.Seed.ToString("X") : "Unknown";
+            VersionText.Text = photo.Version ?? "Unknown";
+
+            // Prompts
+            PromptText.Text = photo.Prompt ?? "No prompt available";
+            NegativePromptText.Text = photo.NegativePrompt ?? "No negative prompt";
+
+            // Extra Parameters
+            if (photo.OtherParameters?.Count > 0)
+            {
+                var parameters = photo.OtherParameters
+                    .Select(kvp => new KeyValuePair(kvp.Key, kvp.Value))
+                    .OrderBy(kvp => kvp.Key)
+                    .ToList();
+                ExtraParametersRepeater.ItemsSource = parameters;
+                ExtraParametersPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ExtraParametersPanel.Visibility = Visibility.Collapsed;
+            }
         }
         catch (Exception)
         {
-            PreviewImage.Source = null;
+            // If there's an error updating the UI, clear everything
+            UpdatePreviewPane(null);
         }
     }
 
@@ -390,30 +443,54 @@ public sealed partial class MainWindow
 
     private async Task SelectFolder(NavigationViewItem folderViewItem)
     {
+        // Get the folder path from the navigation item's Tag property
         var folderPath = (string)folderViewItem.Tag;
         if (string.IsNullOrEmpty(folderPath)) return;
 
+        // Clear the current selection and folder state
         SelectedItem = null;
         _currentFolder = folderPath;
         _currentPhotos.Clear();
+
+        // Load all photos for the selected folder
         var photos = (await _photoService.GetPhotosForFolderAsync(folderPath))
             .Select(p => new PhotoItem
             {
+                // Basic file properties
                 FileName = p.Name,
                 FilePath = p.Path,
                 DateTaken = p.DateTaken,
                 FileSize = p.FileSize,
                 Width = p.Width,
                 Height = p.Height,
-                Thumbnail = p.ThumbnailData != null ? CreateBitmapImage(p.ThumbnailData) : null
+                LastModified = p.LastModified,
+                Thumbnail = p.ThumbnailData != null ? CreateBitmapImage(p.ThumbnailData) : null,
+
+                // Stable Diffusion metadata
+                Prompt = p.Prompt,
+                NegativePrompt = p.NegativePrompt,
+                Steps = p.Steps,
+                Sampler = p.Sampler,
+                CfgScale = p.CfgScale,
+                Seed = p.Seed,
+                Model = p.Model,
+                ModelHash = p.ModelHash,
+                Version = p.Version,
+                OtherParameters = new Dictionary<string, string>(p.OtherParameters)
             });
 
+        // Add each photo to the observable collection
         foreach (var photo in photos)
         {
             _currentPhotos.Add(photo);
         }
 
+        // Reset the view state
         SelectedItem = null;
-        PreviewImage.Source = null;
+        SinglePhotoImage.Source = null;
+
+        // Ensure we're in grid view mode
+        GridView.Visibility = Visibility.Visible;
+        SinglePhotoView.Visibility = Visibility.Collapsed;
     }
 }

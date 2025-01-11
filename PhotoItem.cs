@@ -4,11 +4,13 @@ using System.Runtime.CompilerServices;
 using System;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
+using System.Collections.Generic;
 
 namespace DiffusionView;
 
 public partial class PhotoItem : INotifyPropertyChanged
 {
+    // Basic file properties
     private string _fileName;
     private string _filePath;
     private DateTime? _dateTaken;
@@ -17,7 +19,21 @@ public partial class PhotoItem : INotifyPropertyChanged
     private int _height;
     private BitmapImage _thumbnail;
     private bool _isSelected;
+    private DateTime _lastModified;
 
+    // Stable Diffusion metadata
+    private string _prompt;
+    private string _negativePrompt;
+    private int _steps;
+    private string _sampler;
+    private double _cfgScale;
+    private long _seed;
+    private string _model;
+    private long _modelHash;
+    private string _version;
+    private Dictionary<string, string> _otherParameters = new();
+
+    // Basic file properties
     public bool IsSelected
     {
         get => _isSelected;
@@ -40,6 +56,12 @@ public partial class PhotoItem : INotifyPropertyChanged
     {
         get => _dateTaken;
         set => SetProperty(ref _dateTaken, value);
+    }
+
+    public DateTime LastModified
+    {
+        get => _lastModified;
+        set => SetProperty(ref _lastModified, value);
     }
 
     public ulong FileSize
@@ -66,7 +88,66 @@ public partial class PhotoItem : INotifyPropertyChanged
         set => SetProperty(ref _thumbnail, value);
     }
 
-    public int ThumbnailWidth => (int)((double)Width / Height) * 300;
+    // Stable Diffusion metadata properties
+    public string Prompt
+    {
+        get => _prompt;
+        set => SetProperty(ref _prompt, value);
+    }
+
+    public string NegativePrompt
+    {
+        get => _negativePrompt;
+        set => SetProperty(ref _negativePrompt, value);
+    }
+
+    public int Steps
+    {
+        get => _steps;
+        set => SetProperty(ref _steps, value);
+    }
+
+    public string Sampler
+    {
+        get => _sampler;
+        set => SetProperty(ref _sampler, value);
+    }
+
+    public double CfgScale
+    {
+        get => _cfgScale;
+        set => SetProperty(ref _cfgScale, value);
+    }
+
+    public long Seed
+    {
+        get => _seed;
+        set => SetProperty(ref _seed, value);
+    }
+
+    public string Model
+    {
+        get => _model;
+        set => SetProperty(ref _model, value);
+    }
+
+    public long ModelHash
+    {
+        get => _modelHash;
+        set => SetProperty(ref _modelHash, value);
+    }
+
+    public string Version
+    {
+        get => _version;
+        set => SetProperty(ref _version, value);
+    }
+
+    public Dictionary<string, string> OtherParameters
+    {
+        get => _otherParameters;
+        set => SetProperty(ref _otherParameters, value);
+    }
 
     public event PropertyChangedEventHandler PropertyChanged;
 

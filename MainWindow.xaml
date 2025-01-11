@@ -153,55 +153,142 @@
                                        VerticalAlignment="Stretch"/>
 
                 <Grid Grid.Column="2" Margin="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+                    <ScrollViewer>
+                        <StackPanel Spacing="16">
+                            <!-- File Information -->
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="File Information" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <Grid ColumnSpacing="12" RowSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-                    <Image Grid.Row="0" x:Name="PreviewImage" Stretch="Uniform" />
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="File name:" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="FileNameText" TextWrapping="Wrap" />
 
-                    <StackPanel Grid.Row="1" Spacing="8" Margin="0,12,0,0">
-                        <TextBlock Text="Image Details" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <Grid ColumnSpacing="12" RowSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Path:" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="FilePathText" TextWrapping="Wrap" />
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="File name:" />
-                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="FileNameText" />
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Last modified:" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="LastModifiedText" />
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Date taken:" />
-                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="DateTakenText" />
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Size:" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="SizeText" />
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Size:" />
-                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="SizeText" />
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Resolution:" />
+                                    <TextBlock Grid.Row="4" Grid.Column="1" x:Name="ResolutionText" />
+                                </Grid>
+                            </StackPanel>
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Resolution:" />
-                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ResolutionText" />
-                        </Grid>
+                            <!-- Generation Parameters -->
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Generation Parameters" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <Grid ColumnSpacing="12" RowSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
-                            <Button Click="OpenButton_Click">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE8A7;"/>
-                                    <TextBlock Text="Open" />
-                                </StackPanel>
-                            </Button>
-                            <Button Click="DeleteButton_Click">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE74D;"/>
-                                    <TextBlock Text="Delete" />
-                                </StackPanel>
-                            </Button>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Model:" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="ModelText" TextWrapping="Wrap" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Model hash:" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ModelHashText" />
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Steps:" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="StepsText" />
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="CFG scale:" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="CfgScaleText" />
+
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Sampler:" />
+                                    <TextBlock Grid.Row="4" Grid.Column="1" x:Name="SamplerText" />
+
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Seed:" />
+                                    <TextBlock Grid.Row="5" Grid.Column="1" x:Name="SeedText" />
+
+                                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Version:" />
+                                    <TextBlock Grid.Row="6" Grid.Column="1" x:Name="VersionText" />
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Prompts -->
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Prompts" Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+                                <TextBlock Text="Positive prompt:" Style="{ThemeResource BodyTextBlockStyle}" />
+                                <TextBlock x:Name="PromptText" 
+                                         TextWrapping="Wrap"
+                                         Style="{ThemeResource BodyTextBlockStyle}" />
+
+                                <TextBlock Text="Negative prompt:" 
+                                         Style="{ThemeResource BodyTextBlockStyle}"
+                                         Margin="0,8,0,0" />
+                                <TextBlock x:Name="NegativePromptText" 
+                                         TextWrapping="Wrap"
+                                         Style="{ThemeResource BodyTextBlockStyle}" />
+                            </StackPanel>
+
+                            <!-- Extra Parameters -->
+                            <StackPanel x:Name="ExtraParametersPanel" 
+                                      Spacing="8" 
+                                      Visibility="Collapsed">
+                                <TextBlock Text="Additional Parameters" 
+                                         Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <ItemsRepeater x:Name="ExtraParametersRepeater">
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="local:KeyValuePair">
+                                            <Grid ColumnSpacing="12" Margin="0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" 
+                                                         Text="{Binding Key}" 
+                                                         TextWrapping="Wrap" />
+                                                <TextBlock Grid.Column="1" 
+                                                         Text="{Binding Value}" 
+                                                         TextWrapping="Wrap" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </StackPanel>
+
+                            <!-- Actions -->
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Click="OpenButton_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE8A7;"/>
+                                        <TextBlock Text="Open" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Click="DeleteButton_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE74D;"/>
+                                        <TextBlock Text="Delete" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </Grid>
         </NavigationView>
