@@ -25,6 +25,12 @@ public sealed partial class MainWindow
 
     private Button _selectedItem;
 
+    private bool _fileInfoExpanded = true;
+    private bool _promptsExpanded = true;
+    private bool _parametersExpanded = true;
+    private bool _extraParametersExpanded = true;
+    private bool _rawExpanded = true;
+
     private Button SelectedItem
     {
         get => _selectedItem;
@@ -61,6 +67,21 @@ public sealed partial class MainWindow
     {
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
+
+        FileInfoExpander.Expanding += (s, e) => _fileInfoExpanded = true;
+        FileInfoExpander.Collapsed += (s, e) => _fileInfoExpanded = false;
+
+        PromptsExpander.Expanding += (s, e) => _promptsExpanded = true;
+        PromptsExpander.Collapsed += (s, e) => _promptsExpanded = false;
+
+        ParametersExpander.Expanding += (s, e) => _parametersExpanded = true;
+        ParametersExpander.Collapsed += (s, e) => _parametersExpanded = false;
+
+        ExtraParametersExpander.Expanding += (s, e) => _extraParametersExpanded = true;
+        ExtraParametersExpander.Collapsed += (s, e) => _extraParametersExpanded = false;
+
+        RawExpander.Expanding += (s, e) => _rawExpanded = true;
+        RawExpander.Collapsed += (s, e) => _rawExpanded = false;
 
         _photoService = new PhotoService();
         _photoService.FolderAdded += PhotoService_FolderAdded;
@@ -175,13 +196,17 @@ public sealed partial class MainWindow
                 Prompt = e.Photo.Prompt,
                 NegativePrompt = e.Photo.NegativePrompt,
                 Steps = e.Photo.Steps,
+                GeneratedWidth = e.Photo.GeneratedWidth,
+                GeneratedHeight = e.Photo.GeneratedHeight,
                 Sampler = e.Photo.Sampler,
                 CfgScale = e.Photo.CfgScale,
                 Seed = e.Photo.Seed,
                 Model = e.Photo.Model,
                 ModelHash = e.Photo.ModelHash,
                 Version = e.Photo.Version,
-                OtherParameters = new Dictionary<string, string>(e.Photo.OtherParameters)
+                OtherParameters = new Dictionary<string, string>(e.Photo.OtherParameters),
+
+                Raw = e.Photo.Raw
             };
             _currentPhotos.Add(photo);
         });
@@ -450,6 +475,15 @@ public sealed partial class MainWindow
         return $"{size:0.##} {sizes[order]}";
     }
 
+    private void RestoreExpanderStates()
+    {
+        FileInfoExpander.IsExpanded = _fileInfoExpanded;
+        PromptsExpander.IsExpanded = _promptsExpanded;
+        ParametersExpander.IsExpanded = _parametersExpanded;
+        ExtraParametersExpander.IsExpanded = _extraParametersExpanded;
+        RawExpander.IsExpanded = _rawExpanded;
+    }
+
     private void UpdatePreviewPane(PhotoItem photo)
     {
         if (photo == null)
@@ -469,33 +503,33 @@ public sealed partial class MainWindow
             VersionText.Text = "";
             PromptText.Text = "";
             NegativePromptText.Text = "";
-            ExtraParametersPanel.Visibility = Visibility.Collapsed;
             return;
         }
 
         try
         {
-            // File Information
+            // Preserve expander states before updating content
+            var previousStates = (_fileInfoExpanded, _promptsExpanded, _parametersExpanded, _extraParametersExpanded, _rawExpanded);
+
+            // Update all the fields as before...
             FileNameText.Text = photo.FileName;
             FilePathText.Text = photo.FilePath;
             LastModifiedText.Text = photo.LastModified.ToString("g");
             SizeText.Text = FormatFileSize(photo.FileSize);
             ResolutionText.Text = $"{photo.Width} x {photo.Height}";
 
-            // Generation Parameters
             ModelText.Text = photo.Model ?? "Unknown";
             ModelHashText.Text = photo.ModelHash != 0 ? photo.ModelHash.ToString("X") : "Unknown";
             StepsText.Text = photo.Steps != 0 ? photo.Steps.ToString() : "Unknown";
+            GeneratedResolutionText.Text = $"{photo.GeneratedWidth} x {photo.GeneratedHeight}";
             CfgScaleText.Text = photo.CfgScale != 0 ? photo.CfgScale.ToString("F1") : "Unknown";
             SamplerText.Text = photo.Sampler ?? "Unknown";
             SeedText.Text = photo.Seed != 0 ? photo.Seed.ToString("X") : "Unknown";
             VersionText.Text = photo.Version ?? "Unknown";
 
-            // Prompts
             PromptText.Text = photo.Prompt ?? "No prompt available";
             NegativePromptText.Text = photo.NegativePrompt ?? "No negative prompt";
 
-            // Extra Parameters
             if (photo.OtherParameters?.Count > 0)
             {
                 var parameters = photo.OtherParameters
@@ -503,12 +537,18 @@ public sealed partial class MainWindow
                     .OrderBy(kvp => kvp.Key)
                     .ToList();
                 ExtraParametersRepeater.ItemsSource = parameters;
-                ExtraParametersPanel.Visibility = Visibility.Visible;
+                ExtraParametersExpander.Visibility = Visibility.Visible;
             }
             else
             {
-                ExtraParametersPanel.Visibility = Visibility.Collapsed;
+                ExtraParametersExpander.Visibility = Visibility.Collapsed;
             }
+
+            RawText.Text = photo.Raw ?? "No raw data available";
+
+            // Restore previous expander states
+            (_fileInfoExpanded, _promptsExpanded, _parametersExpanded, _extraParametersExpanded, _rawExpanded) = previousStates;
+            RestoreExpanderStates();
         }
         catch (Exception)
         {
@@ -563,13 +603,17 @@ public sealed partial class MainWindow
                 Prompt = p.Prompt,
                 NegativePrompt = p.NegativePrompt,
                 Steps = p.Steps,
+                GeneratedWidth = p.GeneratedWidth,
+                GeneratedHeight = p.GeneratedHeight,
                 Sampler = p.Sampler,
                 CfgScale = p.CfgScale,
                 Seed = p.Seed,
                 Model = p.Model,
                 ModelHash = p.ModelHash,
                 Version = p.Version,
-                OtherParameters = new Dictionary<string, string>(p.OtherParameters)
+                OtherParameters = new Dictionary<string, string>(p.OtherParameters),
+
+                Raw = p.Raw
             });
 
         // Add each photo to the observable collection

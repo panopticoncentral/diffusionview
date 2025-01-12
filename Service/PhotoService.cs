@@ -11,6 +11,7 @@ using Windows.Storage.Streams;
 using Windows.Storage;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Text;
 using DiffusionView.Database;
 using System.Threading.Channels;
 using Windows.Graphics.Imaging;
@@ -98,7 +99,10 @@ public sealed partial class PhotoService : IDisposable
 
         if (textChunks.Count != 1) throw new FormatException();
 
-        var lines = textChunks.First().Split(['\n'], StringSplitOptions.RemoveEmptyEntries);
+        var raw = textChunks.First();
+        photo.Raw = raw;
+
+        var lines = raw.Split(['\n'], StringSplitOptions.RemoveEmptyEntries);
         var currentLine = 0;
 
         var promptKeyValue = lines[currentLine].Split(':', 2);
@@ -135,16 +139,11 @@ public sealed partial class PhotoService : IDisposable
             photo.NegativePrompt = negativePrompt;
         }
 
-        var otherParameters = lines[currentLine].Split(',', StringSplitOptions.RemoveEmptyEntries);
-        if (otherParameters.Length == 0) throw new FormatException();
+        var otherParameters = new LineParser(lines[currentLine]);
 
-        foreach (var parameter in otherParameters)
+        while (otherParameters.MorePairs)
         {
-            var parts = parameter.Split(':', 2);
-            if (parts.Length != 2) continue;
-
-            var key = parts[0].Trim().ToLowerInvariant();
-            var value = parts[1].Trim();
+            var (key, value) = otherParameters.GetNextKeyValuePair();
 
             switch (key)
             {
@@ -168,9 +167,9 @@ public sealed partial class PhotoService : IDisposable
                     var size = value.Split('x', 2);
                     if (size.Length != 2) throw new FormatException();
                     if (!int.TryParse(size[0], out var width)) throw new FormatException();
-                    if (photo.Width != width) throw new FormatException();
+                    photo.GeneratedWidth = width;
                     if (!int.TryParse(size[1], out var height)) throw new FormatException();
-                    if (photo.Height != height) throw new FormatException();
+                    photo.GeneratedHeight = height;
                     break;
                 }
                 case "model hash":
@@ -491,5 +490,45 @@ public sealed partial class PhotoService : IDisposable
         _watchers.Clear();
 
         _db.Dispose();
+    }
+
+    private sealed class LineParser(string line)
+    {
+        private int _index = 0;
+
+        public bool MorePairs => _index < line.Length;
+
+        public KeyValuePair GetNextKeyValuePair()
+        {
+            var key = new StringBuilder();
+            while (line[_index] != ':')
+            {
+                key.Append(line[_index++]);
+            }
+
+            _index++;
+
+            var value = new StringBuilder();
+            while (_index < line.Length && line[_index] != ',')
+            {
+                if (line[_index] == '"')
+                {
+                    value.Append(line[_index++]);
+                    while (line[_index] != '"')
+                    {
+                        value.Append(line[_index++]);
+                    }
+                }
+
+                value.Append(line[_index++]);
+            }
+
+            if (_index < line.Length)
+            {
+                _index++;
+            }
+
+            return new KeyValuePair(key.ToString().Trim().ToLowerInvariant(), value.ToString().Trim());
+        }
     }
 }

@@ -26,6 +26,8 @@ public sealed class Photo
     [MaxLength(1024)]
     public string NegativePrompt { get; set; }
     public int Steps { get; set; }
+    public int GeneratedWidth { get; set; }
+    public int GeneratedHeight { get; set; }
     [MaxLength(64)]
     public string Sampler { get; set; }
     public double CfgScale { get; set; }
@@ -36,4 +38,6 @@ public sealed class Photo
     [MaxLength(64)]
     public string Version { get; set; }
     public Dictionary<string, string> OtherParameters { get; set; } = new();
+    [MaxLength(1024)]
+    public string Raw { get; set; }
 }

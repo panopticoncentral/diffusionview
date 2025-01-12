@@ -25,6 +25,8 @@ public partial class PhotoItem : INotifyPropertyChanged
     private string _prompt;
     private string _negativePrompt;
     private int _steps;
+    private int _generatedWidth;
+    private int _generatedHeight;
     private string _sampler;
     private double _cfgScale;
     private long _seed;
@@ -32,6 +34,7 @@ public partial class PhotoItem : INotifyPropertyChanged
     private long _modelHash;
     private string _version;
     private Dictionary<string, string> _otherParameters = new();
+    private string _raw;
 
     // Basic file properties
     public bool IsSelected
@@ -107,6 +110,18 @@ public partial class PhotoItem : INotifyPropertyChanged
         set => SetProperty(ref _steps, value);
     }
 
+    public int GeneratedWidth
+    {
+        get => _generatedWidth;
+        set => SetProperty(ref _generatedWidth, value);
+    }
+
+    public int GeneratedHeight
+    {
+        get => _generatedHeight;
+        set => SetProperty(ref _generatedHeight, value);
+    }
+
     public string Sampler
     {
         get => _sampler;
@@ -147,6 +162,12 @@ public partial class PhotoItem : INotifyPropertyChanged
     {
         get => _otherParameters;
         set => SetProperty(ref _otherParameters, value);
+    }
+
+    public string Raw
+    {
+        get => _raw;
+        set => SetProperty(ref _raw, value);
     }
 
     public event PropertyChangedEventHandler PropertyChanged;
