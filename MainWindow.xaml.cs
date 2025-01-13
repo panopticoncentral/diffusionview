@@ -24,7 +24,7 @@ public sealed partial class MainWindow
     private string _currentFolder;
     private readonly ObservableCollection<PhotoItem> _currentPhotos = [];
 
-    private Button _selectedItem;
+    private PhotoItem _selectedItem;
 
     private bool _fileInfoExpanded = true;
     private bool _promptsExpanded = true;
@@ -32,7 +32,7 @@ public sealed partial class MainWindow
     private bool _extraParametersExpanded = true;
     private bool _rawExpanded = true;
 
-    private Button SelectedItem
+    private PhotoItem SelectedItem
     {
         get => _selectedItem;
         set
@@ -44,23 +44,20 @@ public sealed partial class MainWindow
 
             if (_selectedItem != null)
             {
-                var previousPhoto = (PhotoItem)_selectedItem.DataContext;
-                if (previousPhoto != null)
-                {
-                    previousPhoto.IsSelected = false;
-                    previousPhoto.UpdateVisualState(_selectedItem);
-                    UpdatePreviewPane(null);
-                }
+                _selectedItem.IsSelected = false;
+                _selectedItem.UpdateVisualState(GetButtonForItem(_selectedItem));
+                UpdatePreviewPane(null);
             }
 
             _selectedItem = value;
 
             if (_selectedItem == null) return;
 
-            var photo = (PhotoItem)_selectedItem.DataContext;
-            photo.IsSelected = true;
-            photo.UpdateVisualState(_selectedItem);
-            UpdatePreviewPane(photo);
+            _selectedItem.IsSelected = true;
+            var button = GetButtonForItem(_selectedItem);
+            _selectedItem.UpdateVisualState(button);
+            ScrollIntoView(button);
+            UpdatePreviewPane(_selectedItem);
         }
     }
 
@@ -95,48 +92,37 @@ public sealed partial class MainWindow
 
     private void MainGrid_KeyDown(object sender, KeyRoutedEventArgs e)
     {
-        // Only handle left/right arrow keys
-        if (e.Key != Windows.System.VirtualKey.Left && e.Key != Windows.System.VirtualKey.Right)
-            return;
+        if (e.Key != VirtualKey.Left && e.Key != VirtualKey.Right) return;
 
-        // If we have no photos, there's nothing to navigate
-        if (_currentPhotos.Count == 0)
-            return;
+        if (_currentPhotos.Count == 0) return;
 
         if (SinglePhotoView.Visibility == Visibility.Visible)
         {
-            // In single photo view, use the existing navigation buttons
-            if (e.Key == Windows.System.VirtualKey.Left)
-                PreviousButton_Click(null, null);
-            else
-                NextButton_Click(null, null);
-
-            e.Handled = true;
-            return;
-        }
-
-        // In grid view, navigate the selection
-        if (SelectedItem?.DataContext is not PhotoItem currentPhoto)
-        {
-            // If nothing is selected, select the first item
-            var firstButton = GetButtonForItem(_currentPhotos[0]);
-            if (firstButton != null)
+            if (e.Key == VirtualKey.Left)
             {
-                SelectedItem = firstButton;
-                ScrollIntoView(firstButton);
+                PreviousButton_Click(null, null);
             }
+            else
+            {
+                NextButton_Click(null, null);
+            }
+
             e.Handled = true;
             return;
         }
 
-        // Find the current index
-        var currentIndex = _currentPhotos.IndexOf(currentPhoto);
-        if (currentIndex == -1)
+        if (SelectedItem == null)
+        {
+            SelectedItem = _currentPhotos[0];
+            e.Handled = true;
             return;
+        }
 
-        // Calculate the new index
-        var newIndex = currentIndex;
-        if (e.Key == Windows.System.VirtualKey.Left)
+        var currentIndex = _currentPhotos.IndexOf(SelectedItem);
+        if (currentIndex == -1) return;
+
+        int newIndex;
+        if (e.Key == VirtualKey.Left)
         {
             newIndex = currentIndex > 0 ? currentIndex - 1 : _currentPhotos.Count - 1;
         }
@@ -145,38 +131,15 @@ public sealed partial class MainWindow
             newIndex = (currentIndex + 1) % _currentPhotos.Count;
         }
 
-        // Update selection
-        var nextButton = GetButtonForItem(_currentPhotos[newIndex]);
-        if (nextButton != null)
-        {
-            // Update the selection state of the current photo
-            if (currentPhoto != null)
-            {
-                currentPhoto.IsSelected = false;
-                currentPhoto.UpdateVisualState(SelectedItem);
-            }
-
-            // Update the selection state of the new photo
-            var nextPhoto = _currentPhotos[newIndex];
-            nextPhoto.IsSelected = true;
-            nextPhoto.UpdateVisualState(nextButton);
-
-            // Update selected item and scroll
-            SelectedItem = nextButton;
-            UpdatePreviewPane(nextPhoto);
-            ScrollIntoView(nextButton);
-        }
-
+        SelectedItem = _currentPhotos[newIndex];
         e.Handled = true;
     }
 
-    // Update the PhotoItem_Click method to ensure the Grid gets focus
     private void PhotoItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: PhotoItem photo } button) return;
 
-        SelectedItem = button;
-        // Ensure the main grid has focus to receive keyboard input
+        SelectedItem = photo;
         ((Grid)Content).Focus(FocusState.Programmatic);
     }
 
@@ -185,21 +148,17 @@ public sealed partial class MainWindow
         if (GridView?.Content is not ItemsRepeater repeater)
             return;
 
-        // Get the element bounds within the ItemsRepeater
         var transform = element.TransformToVisual(repeater);
         var elementBounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, element.ActualWidth, element.ActualHeight));
 
-        // Get the visible bounds of the ScrollViewer
         var scrollViewer = GridView;
         var viewportHeight = scrollViewer.ViewportHeight;
         var verticalOffset = scrollViewer.VerticalOffset;
 
-        // If the element is above the visible area, scroll up
         if (elementBounds.Top < verticalOffset)
         {
             scrollViewer.ChangeView(null, elementBounds.Top, null);
         }
-        // If the element is below the visible area, scroll down
         else if (elementBounds.Bottom > verticalOffset + viewportHeight)
         {
             scrollViewer.ChangeView(null, elementBounds.Bottom - viewportHeight, null);
@@ -278,7 +237,7 @@ public sealed partial class MainWindow
             if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
             var photo = _currentPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
             if (photo == null) return;
-            if (SelectedItem.DataContext == photo)
+            if (SelectedItem == photo)
             {
                 SelectedItem = null;
             }
@@ -360,63 +319,42 @@ public sealed partial class MainWindow
     {
         if (sender is not Button { DataContext: PhotoItem photo } button) return;
 
-        SelectedItem = button;
+        SelectedItem = photo;
         SwitchToSinglePhotoView();
     }
 
-    // Handles the previous button click in single photo view
     private void PreviousButton_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem?.DataContext is not PhotoItem currentPhoto) return;
+        if (SelectedItem == null) return;
 
-        // Find the current index in the photo collection
-        var currentIndex = _currentPhotos.IndexOf(currentPhoto);
+        var currentIndex = _currentPhotos.IndexOf(SelectedItem);
 
-        // Calculate the previous index, wrapping around to the end if necessary
         var previousIndex = currentIndex - 1;
         if (previousIndex < 0)
         {
             previousIndex = _currentPhotos.Count - 1;
         }
 
-        // Find the button associated with the previous photo
-        var photoButton = GetButtonForItem(_currentPhotos[previousIndex]);
-        if (photoButton != null)
-        {
-            // Update selection and view
-            SelectedItem = photoButton;
-            UpdateSinglePhotoView(_currentPhotos[previousIndex]);
-        }
+        SelectedItem = _currentPhotos[previousIndex];
+        UpdateSinglePhotoView(_currentPhotos[previousIndex]);
     }
 
-    // Handles the next button click in single photo view
     private void NextButton_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem?.DataContext is not PhotoItem currentPhoto) return;
+        if (SelectedItem == null) return;
 
-        // Find the current index in the photo collection
-        var currentIndex = _currentPhotos.IndexOf(currentPhoto);
+        var currentIndex = _currentPhotos.IndexOf(SelectedItem);
 
-        // Calculate the next index, wrapping around to the start if necessary
         var nextIndex = (currentIndex + 1) % _currentPhotos.Count;
 
-        // Find the button associated with the next photo
-        var photoButton = GetButtonForItem(_currentPhotos[nextIndex]);
-        if (photoButton != null)
-        {
-            // Update selection and view
-            SelectedItem = photoButton;
-            UpdateSinglePhotoView(_currentPhotos[nextIndex]);
-        }
+        SelectedItem = _currentPhotos[nextIndex];
+        UpdateSinglePhotoView(_currentPhotos[nextIndex]);
     }
 
-    // Helper method to find the Button associated with a PhotoItem
     private Button GetButtonForItem(PhotoItem photo)
     {
-        // If we have an ItemsRepeater, we can search through its realized elements
         if (GridView.Content is not ItemsRepeater repeater) return null;
 
-        // Look through all realized elements to find the one matching our photo
         for (var i = 0; i < _currentPhotos.Count; i++)
         {
             var element = repeater.TryGetElement(i) as Button;
@@ -426,52 +364,41 @@ public sealed partial class MainWindow
             }
         }
 
-        // If we couldn't find the button (item might not be realized), create a new one
         return new Button
         {
             DataContext = photo
         };
     }
 
-    // Helper method to update the single photo view with a new photo
     private void UpdateSinglePhotoView(PhotoItem photo)
     {
         try
         {
-            // Load and display the full-resolution image
             var bitmap = new BitmapImage(new Uri(photo.FilePath));
             SinglePhotoImage.Source = bitmap;
 
-            // Update navigation button states
             UpdateNavigationButtonStates();
         }
         catch (Exception)
         {
-            // If loading full resolution fails, fall back to thumbnail
             SinglePhotoImage.Source = photo.Thumbnail;
         }
     }
 
-    // Updates the enabled state of navigation buttons
     private void UpdateNavigationButtonStates()
     {
-        if (SelectedItem?.DataContext is not PhotoItem currentPhoto) return;
+        if (SelectedItem == null) return;
 
-        var currentIndex = _currentPhotos.IndexOf(currentPhoto);
-
-        // Enable/disable navigation buttons based on photo position and collection size
         PreviousButton.IsEnabled = _currentPhotos.Count > 1;
         NextButton.IsEnabled = _currentPhotos.Count > 1;
     }
 
-    // Updated version of SwitchToSinglePhotoView to use the new helper method
     private void SwitchToSinglePhotoView()
     {
-        if (SelectedItem?.DataContext is not PhotoItem photo) return;
+        if (SelectedItem == null) return;
 
-        UpdateSinglePhotoView(photo);
+        UpdateSinglePhotoView(SelectedItem);
 
-        // Switch visibility
         GridView.Visibility = Visibility.Collapsed;
         SinglePhotoView.Visibility = Visibility.Visible;
     }
@@ -485,9 +412,9 @@ public sealed partial class MainWindow
     {
         try
         {
-            if (SelectedItem is not { } selectedPhoto) return;
+            if (SelectedItem == null) return;
     
-            var file = await StorageFile.GetFileFromPathAsync(((PhotoItem)selectedPhoto.DataContext).FilePath);
+            var file = await StorageFile.GetFileFromPathAsync(SelectedItem.FilePath);
             await Launcher.LaunchFileAsync(file);
         }
         catch (Exception)
@@ -500,12 +427,12 @@ public sealed partial class MainWindow
     {
         try
         {
-            if (SelectedItem is not { } selectedPhoto) return;
+            if (SelectedItem == null) return;
 
             var dialog = new ContentDialog
             {
                 Title = "Delete Photo",
-                Content = $"Are you sure you want to delete {((PhotoItem)selectedPhoto.DataContext).FileName}?",
+                Content = $"Are you sure you want to delete {SelectedItem.FileName}?",
                 PrimaryButtonText = "Delete",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,
@@ -515,7 +442,7 @@ public sealed partial class MainWindow
             var result = await dialog.ShowAsync();
             if (result != ContentDialogResult.Primary) return;
 
-            var file = await StorageFile.GetFileFromPathAsync(((PhotoItem)selectedPhoto.DataContext).FilePath);
+            var file = await StorageFile.GetFileFromPathAsync(SelectedItem.FilePath);
             await file.DeleteAsync();
         }
         catch (Exception)
