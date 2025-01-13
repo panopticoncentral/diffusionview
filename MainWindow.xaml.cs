@@ -13,6 +13,7 @@ using DiffusionView.Service;
 using WinRT.Interop;
 using System.Collections.Generic;
 using System.IO;
+using Microsoft.UI.Xaml.Input;
 
 namespace DiffusionView;
 
@@ -92,6 +93,118 @@ public sealed partial class MainWindow
         _photoService.Initialize();
     }
 
+    private void MainGrid_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        // Only handle left/right arrow keys
+        if (e.Key != Windows.System.VirtualKey.Left && e.Key != Windows.System.VirtualKey.Right)
+            return;
+
+        // If we have no photos, there's nothing to navigate
+        if (_currentPhotos.Count == 0)
+            return;
+
+        if (SinglePhotoView.Visibility == Visibility.Visible)
+        {
+            // In single photo view, use the existing navigation buttons
+            if (e.Key == Windows.System.VirtualKey.Left)
+                PreviousButton_Click(null, null);
+            else
+                NextButton_Click(null, null);
+
+            e.Handled = true;
+            return;
+        }
+
+        // In grid view, navigate the selection
+        if (SelectedItem?.DataContext is not PhotoItem currentPhoto)
+        {
+            // If nothing is selected, select the first item
+            var firstButton = GetButtonForItem(_currentPhotos[0]);
+            if (firstButton != null)
+            {
+                SelectedItem = firstButton;
+                ScrollIntoView(firstButton);
+            }
+            e.Handled = true;
+            return;
+        }
+
+        // Find the current index
+        var currentIndex = _currentPhotos.IndexOf(currentPhoto);
+        if (currentIndex == -1)
+            return;
+
+        // Calculate the new index
+        var newIndex = currentIndex;
+        if (e.Key == Windows.System.VirtualKey.Left)
+        {
+            newIndex = currentIndex > 0 ? currentIndex - 1 : _currentPhotos.Count - 1;
+        }
+        else
+        {
+            newIndex = (currentIndex + 1) % _currentPhotos.Count;
+        }
+
+        // Update selection
+        var nextButton = GetButtonForItem(_currentPhotos[newIndex]);
+        if (nextButton != null)
+        {
+            // Update the selection state of the current photo
+            if (currentPhoto != null)
+            {
+                currentPhoto.IsSelected = false;
+                currentPhoto.UpdateVisualState(SelectedItem);
+            }
+
+            // Update the selection state of the new photo
+            var nextPhoto = _currentPhotos[newIndex];
+            nextPhoto.IsSelected = true;
+            nextPhoto.UpdateVisualState(nextButton);
+
+            // Update selected item and scroll
+            SelectedItem = nextButton;
+            UpdatePreviewPane(nextPhoto);
+            ScrollIntoView(nextButton);
+        }
+
+        e.Handled = true;
+    }
+
+    // Update the PhotoItem_Click method to ensure the Grid gets focus
+    private void PhotoItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: PhotoItem photo } button) return;
+
+        SelectedItem = button;
+        // Ensure the main grid has focus to receive keyboard input
+        ((Grid)Content).Focus(FocusState.Programmatic);
+    }
+
+    private void ScrollIntoView(FrameworkElement element)
+    {
+        if (GridView?.Content is not ItemsRepeater repeater)
+            return;
+
+        // Get the element bounds within the ItemsRepeater
+        var transform = element.TransformToVisual(repeater);
+        var elementBounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, element.ActualWidth, element.ActualHeight));
+
+        // Get the visible bounds of the ScrollViewer
+        var scrollViewer = GridView;
+        var viewportHeight = scrollViewer.ViewportHeight;
+        var verticalOffset = scrollViewer.VerticalOffset;
+
+        // If the element is above the visible area, scroll up
+        if (elementBounds.Top < verticalOffset)
+        {
+            scrollViewer.ChangeView(null, elementBounds.Top, null);
+        }
+        // If the element is below the visible area, scroll down
+        else if (elementBounds.Bottom > verticalOffset + viewportHeight)
+        {
+            scrollViewer.ChangeView(null, elementBounds.Bottom - viewportHeight, null);
+        }
+    }
     private void PhotoService_FolderAdded(object _, FolderChangedEventArgs e)
     {
         if (DispatcherQueue == null) return;
@@ -241,13 +354,6 @@ public sealed partial class MainWindow
         {
             // Don't do anything for the moment...
         }
-    }
-
-    private void PhotoItem_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { DataContext: PhotoItem photo } button) return;
-
-        SelectedItem = button;
     }
 
     private void PhotoItem_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)

@@ -9,7 +9,11 @@
     xmlns:local="using:DiffusionView"
     mc:Ignorable="d">
 
-    <Grid>
+    <Grid KeyDown="MainGrid_KeyDown" 
+          XYFocusKeyboardNavigation="Enabled"
+          TabFocusNavigation="Cycle"
+          IsTabStop="True"
+          UseSystemFocusVisuals="False">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
