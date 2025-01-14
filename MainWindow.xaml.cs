@@ -12,12 +12,13 @@ using Windows.System;
 using DiffusionView.Service;
 using WinRT.Interop;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using Microsoft.UI.Xaml.Input;
 
 namespace DiffusionView;
 
-public sealed partial class MainWindow
+public sealed partial class MainWindow : INotifyPropertyChanged
 {
     private readonly PhotoService _photoService;
 
@@ -32,7 +33,7 @@ public sealed partial class MainWindow
     private bool _extraParametersExpanded = true;
     private bool _rawExpanded = true;
 
-    private PhotoItem SelectedItem
+    public PhotoItem SelectedItem
     {
         get => _selectedItem;
         set
@@ -50,6 +51,7 @@ public sealed partial class MainWindow
             }
 
             _selectedItem = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedItem)));
 
             if (_selectedItem == null) return;
 
@@ -60,6 +62,8 @@ public sealed partial class MainWindow
             UpdatePreviewPane(_selectedItem);
         }
     }
+
+    public event PropertyChangedEventHandler PropertyChanged;
 
     public MainWindow()
     {
@@ -164,6 +168,7 @@ public sealed partial class MainWindow
             scrollViewer.ChangeView(null, elementBounds.Bottom - viewportHeight, null);
         }
     }
+
     private void PhotoService_FolderAdded(object _, FolderChangedEventArgs e)
     {
         if (DispatcherQueue == null) return;
@@ -521,9 +526,6 @@ public sealed partial class MainWindow
     {
         if (photo == null)
         {
-            // Clear all fields when no photo is selected
-            FileNameText.Text = "";
-            FilePathText.Text = "";
             LastModifiedText.Text = "";
             SizeText.Text = "";
             ResolutionText.Text = "";
@@ -544,9 +546,6 @@ public sealed partial class MainWindow
             // Preserve expander states before updating content
             var previousStates = (_fileInfoExpanded, _promptsExpanded, _parametersExpanded, _extraParametersExpanded, _rawExpanded);
 
-            // Update all the fields as before...
-            FileNameText.Text = photo.FileName;
-            FilePathText.Text = photo.FilePath;
             LastModifiedText.Text = photo.LastModified.ToString("g");
             SizeText.Text = FormatFileSize(photo.FileSize);
             ResolutionText.Text = $"{photo.Width} x {photo.Height}";

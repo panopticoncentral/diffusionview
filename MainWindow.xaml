@@ -267,7 +267,7 @@
                                                Text="File name:" />
                                     <TextBox Grid.Row="0" 
                                              Grid.Column="1" 
-                                             x:Name="FileNameText" 
+                                             Text="{x:Bind SelectedItem.FileName, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="1" 
@@ -275,7 +275,7 @@
                                                Text="Path:" />
                                     <TextBox Grid.Row="1"
                                              Grid.Column="1" 
-                                             x:Name="FilePathText"
+                                             Text="{x:Bind SelectedItem.FilePath, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="2"
