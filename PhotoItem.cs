@@ -5,38 +5,38 @@ using System;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
 using System.Collections.Generic;
+using DiffusionView.Database;
+using System.Linq;
 
 namespace DiffusionView;
 
-public partial class PhotoItem : INotifyPropertyChanged
+public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
 {
-    // Basic file properties
-    private string _fileName;
-    private string _filePath;
-    private DateTime? _dateTaken;
-    private ulong _fileSize;
-    private int _width;
-    private int _height;
-    private BitmapImage _thumbnail;
+    private string _fileName = photo.Name;
+    private string _filePath = photo.Path;
+    private string _fileSize = FormatFileSize(photo.FileSize);
+    private string _resolution = $"{photo.Width} x {photo.Height}";
+    private int _width = photo.Width;
+    private int _height = photo.Height;
+    private BitmapImage _thumbnail = photo.CreateBitmapImage();
     private bool _isSelected;
-    private DateTime _lastModified;
+    private string _lastModified = photo.LastModified.ToString("g");
 
-    // Stable Diffusion metadata
-    private string _prompt;
-    private string _negativePrompt;
-    private int _steps;
-    private int _generatedWidth;
-    private int _generatedHeight;
-    private string _sampler;
-    private double _cfgScale;
-    private long _seed;
-    private string _model;
-    private long _modelHash;
-    private string _version;
-    private Dictionary<string, string> _otherParameters = new();
-    private string _raw;
+    private string _prompt = photo.Prompt ?? "No prompt available";
+    private string _negativePrompt = photo.NegativePrompt ?? "No negative prompt available";
+    private string _steps = photo.Steps != 0 ? photo.Steps.ToString() : "Unknown";
+    private int _generatedWidth = photo.GeneratedWidth;
+    private int _generatedHeight = photo.GeneratedHeight;
+    private string _generatedResolution = $"{photo.GeneratedWidth} x {photo.GeneratedHeight}";
+    private string _sampler = photo.Sampler ?? "Unknown";
+    private string _cfgScale = photo.CfgScale != 0 ? photo.CfgScale.ToString("F1") : "Unknown";
+    private string _seed = photo.Seed != 0 ? photo.Seed.ToString("X") : "Unknown";
+    private string _model = photo.Model ?? "Unknown";
+    private string _modelHash = photo.ModelHash != 0 ? photo.ModelHash.ToString("X") : "Unknown";
+    private string _version = photo.Version ?? "Unknown";
+    private Dictionary<string, string> _otherParameters = new(photo.OtherParameters);
+    private string _raw = photo.Raw ?? "No raw data available";
 
-    // Basic file properties
     public bool IsSelected
     {
         get => _isSelected;
@@ -55,19 +55,13 @@ public partial class PhotoItem : INotifyPropertyChanged
         set => SetProperty(ref _filePath, value);
     }
 
-    public DateTime? DateTaken
-    {
-        get => _dateTaken;
-        set => SetProperty(ref _dateTaken, value);
-    }
-
-    public DateTime LastModified
+    public string LastModified
     {
         get => _lastModified;
         set => SetProperty(ref _lastModified, value);
     }
 
-    public ulong FileSize
+    public string FileSize
     {
         get => _fileSize;
         set => SetProperty(ref _fileSize, value);
@@ -83,6 +77,12 @@ public partial class PhotoItem : INotifyPropertyChanged
     {
         get => _height;
         set => SetProperty(ref _height, value);
+    }
+
+    public string Resolution
+    {
+        get => _resolution;
+        set => SetProperty(ref _resolution, value);
     }
 
     public BitmapImage Thumbnail
@@ -104,7 +104,7 @@ public partial class PhotoItem : INotifyPropertyChanged
         set => SetProperty(ref _negativePrompt, value);
     }
 
-    public int Steps
+    public string Steps
     {
         get => _steps;
         set => SetProperty(ref _steps, value);
@@ -122,19 +122,25 @@ public partial class PhotoItem : INotifyPropertyChanged
         set => SetProperty(ref _generatedHeight, value);
     }
 
+    public string GeneratedResolution
+    {
+        get => _generatedResolution;
+        set => SetProperty(ref _generatedResolution, value);
+    }
+
     public string Sampler
     {
         get => _sampler;
         set => SetProperty(ref _sampler, value);
     }
 
-    public double CfgScale
+    public string CfgScale
     {
         get => _cfgScale;
         set => SetProperty(ref _cfgScale, value);
     }
 
-    public long Seed
+    public string Seed
     {
         get => _seed;
         set => SetProperty(ref _seed, value);
@@ -146,7 +152,7 @@ public partial class PhotoItem : INotifyPropertyChanged
         set => SetProperty(ref _model, value);
     }
 
-    public long ModelHash
+    public string ModelHash
     {
         get => _modelHash;
         set => SetProperty(ref _modelHash, value);
@@ -161,8 +167,15 @@ public partial class PhotoItem : INotifyPropertyChanged
     public Dictionary<string, string> OtherParameters
     {
         get => _otherParameters;
-        set => SetProperty(ref _otherParameters, value);
+        set
+        {
+            _otherParameters = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(OtherParameters)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ParametersList)));
+        }
     }
+
+    public IEnumerable<KeyValuePair> ParametersList => OtherParameters.Select(kvp => new KeyValuePair(kvp.Key, kvp.Value)).OrderBy(kvp => kvp.Key);
 
     public string Raw
     {
@@ -171,6 +184,21 @@ public partial class PhotoItem : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler PropertyChanged;
+
+    private static string FormatFileSize(ulong bytes)
+    {
+        string[] sizes = ["B", "KB", "MB", "GB"];
+        var order = 0;
+        double size = bytes;
+
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+
+        return $"{size:0.##} {sizes[order]}";
+    }
 
     protected void SetProperty<T>(ref T storage, T value, [CallerMemberName] string propertyName = null)
     {

@@ -141,7 +141,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private void PhotoItem_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { DataContext: PhotoItem photo } button) return;
+        if (sender is not Button { DataContext: PhotoItem photo }) return;
 
         SelectedItem = photo;
         ((Grid)Content).Focus(FocusState.Programmatic);
@@ -257,34 +257,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         DispatcherQueue.TryEnqueue(() =>
         {
             if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
-            var photo = new PhotoItem
-            {
-                // Basic file properties
-                FileName = e.Photo.Name,
-                FilePath = e.Photo.Path,
-                DateTaken = e.Photo.DateTaken,
-                FileSize = e.Photo.FileSize,
-                Width = e.Photo.Width,
-                Height = e.Photo.Height,
-                LastModified = e.Photo.LastModified,
-                Thumbnail = e.Photo.ThumbnailData != null ? CreateBitmapImage(e.Photo.ThumbnailData) : null,
-
-                // Stable Diffusion metadata
-                Prompt = e.Photo.Prompt,
-                NegativePrompt = e.Photo.NegativePrompt,
-                Steps = e.Photo.Steps,
-                GeneratedWidth = e.Photo.GeneratedWidth,
-                GeneratedHeight = e.Photo.GeneratedHeight,
-                Sampler = e.Photo.Sampler,
-                CfgScale = e.Photo.CfgScale,
-                Seed = e.Photo.Seed,
-                Model = e.Photo.Model,
-                ModelHash = e.Photo.ModelHash,
-                Version = e.Photo.Version,
-                OtherParameters = new Dictionary<string, string>(e.Photo.OtherParameters),
-
-                Raw = e.Photo.Raw
-            };
+            var photo = new PhotoItem(e.Photo);
             _currentPhotos.Add(photo);
         });
     }
@@ -297,7 +270,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             var photo = _currentPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
             if (photo == null) return;
 
-            photo.Thumbnail = CreateBitmapImage(e.Photo.ThumbnailData);
+            photo.Thumbnail = e.Photo.CreateBitmapImage();
         });
     }
 
@@ -322,7 +295,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private void PhotoItem_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
     {
-        if (sender is not Button { DataContext: PhotoItem photo } button) return;
+        if (sender is not Button { DataContext: PhotoItem photo }) return;
 
         SelectedItem = photo;
         SwitchToSinglePhotoView();
@@ -485,34 +458,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         }
     }
 
-    private static BitmapImage CreateBitmapImage(byte[] data)
-    {
-        if (data == null)
-            return null;
-
-        var image = new BitmapImage();
-        using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-        stream.WriteAsync(data.AsBuffer()).GetResults();
-        stream.Seek(0);
-        image.SetSource(stream);
-        return image;
-    }
-
-    private static string FormatFileSize(ulong bytes)
-    {
-        string[] sizes = ["B", "KB", "MB", "GB"];
-        var order = 0;
-        double size = bytes;
-
-        while (size >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            size /= 1024;
-        }
-
-        return $"{size:0.##} {sizes[order]}";
-    }
-
     private void RestoreExpanderStates()
     {
         FileInfoExpander.IsExpanded = _fileInfoExpanded;
@@ -526,18 +471,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     {
         if (photo == null)
         {
-            LastModifiedText.Text = "";
-            SizeText.Text = "";
-            ResolutionText.Text = "";
-            ModelText.Text = "";
-            ModelHashText.Text = "";
-            StepsText.Text = "";
-            CfgScaleText.Text = "";
-            SamplerText.Text = "";
-            SeedText.Text = "";
-            VersionText.Text = "";
-            PromptText.Text = "";
-            NegativePromptText.Text = "";
             return;
         }
 
@@ -545,38 +478,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         {
             // Preserve expander states before updating content
             var previousStates = (_fileInfoExpanded, _promptsExpanded, _parametersExpanded, _extraParametersExpanded, _rawExpanded);
-
-            LastModifiedText.Text = photo.LastModified.ToString("g");
-            SizeText.Text = FormatFileSize(photo.FileSize);
-            ResolutionText.Text = $"{photo.Width} x {photo.Height}";
-
-            ModelText.Text = photo.Model ?? "Unknown";
-            ModelHashText.Text = photo.ModelHash != 0 ? photo.ModelHash.ToString("X") : "Unknown";
-            StepsText.Text = photo.Steps != 0 ? photo.Steps.ToString() : "Unknown";
-            GeneratedResolutionText.Text = $"{photo.GeneratedWidth} x {photo.GeneratedHeight}";
-            CfgScaleText.Text = photo.CfgScale != 0 ? photo.CfgScale.ToString("F1") : "Unknown";
-            SamplerText.Text = photo.Sampler ?? "Unknown";
-            SeedText.Text = photo.Seed != 0 ? photo.Seed.ToString("X") : "Unknown";
-            VersionText.Text = photo.Version ?? "Unknown";
-
-            PromptText.Text = photo.Prompt ?? "No prompt available";
-            NegativePromptText.Text = photo.NegativePrompt ?? "No negative prompt";
-
-            if (photo.OtherParameters?.Count > 0)
-            {
-                var parameters = photo.OtherParameters
-                    .Select(kvp => new KeyValuePair(kvp.Key, kvp.Value))
-                    .OrderBy(kvp => kvp.Key)
-                    .ToList();
-                ExtraParametersRepeater.ItemsSource = parameters;
-                ExtraParametersExpander.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                ExtraParametersExpander.Visibility = Visibility.Collapsed;
-            }
-
-            RawText.Text = photo.Raw ?? "No raw data available";
 
             // Restore previous expander states
             (_fileInfoExpanded, _promptsExpanded, _parametersExpanded, _extraParametersExpanded, _rawExpanded) = previousStates;
@@ -619,34 +520,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
         // Load all photos for the selected folder
         var photos = (await _photoService.GetPhotosForFolderAsync(folderPath))
-            .Select(p => new PhotoItem
-            {
-                // Basic file properties
-                FileName = p.Name,
-                FilePath = p.Path,
-                DateTaken = p.DateTaken,
-                FileSize = p.FileSize,
-                Width = p.Width,
-                Height = p.Height,
-                LastModified = p.LastModified,
-                Thumbnail = p.ThumbnailData != null ? CreateBitmapImage(p.ThumbnailData) : null,
-
-                // Stable Diffusion metadata
-                Prompt = p.Prompt,
-                NegativePrompt = p.NegativePrompt,
-                Steps = p.Steps,
-                GeneratedWidth = p.GeneratedWidth,
-                GeneratedHeight = p.GeneratedHeight,
-                Sampler = p.Sampler,
-                CfgScale = p.CfgScale,
-                Seed = p.Seed,
-                Model = p.Model,
-                ModelHash = p.ModelHash,
-                Version = p.Version,
-                OtherParameters = new Dictionary<string, string>(p.OtherParameters),
-
-                Raw = p.Raw
-            });
+            .Select(p => new PhotoItem(p));
 
         // Add each photo to the observable collection
         foreach (var photo in photos)

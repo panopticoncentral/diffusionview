@@ -283,7 +283,7 @@
                                                Text="Last modified:" />
                                     <TextBox Grid.Row="2" 
                                              Grid.Column="1" 
-                                             x:Name="LastModifiedText"
+                                             Text="{x:Bind SelectedItem.LastModified, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="3" 
@@ -291,7 +291,7 @@
                                                Text="Size:" />
                                     <TextBox Grid.Row="3" 
                                              Grid.Column="1" 
-                                             x:Name="SizeText"
+                                             Text="{x:Bind SelectedItem.FileSize, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="4" 
@@ -299,7 +299,7 @@
                                                Text="Resolution:" />
                                     <TextBox Grid.Row="4" 
                                              Grid.Column="1" 
-                                             x:Name="ResolutionText"
+                                             Text="{x:Bind SelectedItem.Resolution, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
                                 </Grid>
                             </Expander>
@@ -316,7 +316,7 @@
                                             Margin="0,8,0,0">
                                     <TextBlock Text="Positive prompt:" 
                                                Style="{ThemeResource BodyTextBlockStyle}" />
-                                    <TextBox x:Name="PromptText"
+                                    <TextBox Text="{x:Bind SelectedItem.Prompt, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}"
                                              MinHeight="60"
                                              AcceptsReturn="True" />
@@ -324,7 +324,7 @@
                                     <TextBlock Text="Negative prompt:" 
                                                Style="{ThemeResource BodyTextBlockStyle}"
                                                Margin="0,8,0,0" />
-                                    <TextBox x:Name="NegativePromptText"
+                                    <TextBox Text="{x:Bind SelectedItem.NegativePrompt, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}"
                                              MinHeight="60"
                                              AcceptsReturn="True" />
@@ -362,7 +362,7 @@
                                                Text="Model:" />
                                     <TextBox Grid.Row="0" 
                                              Grid.Column="1" 
-                                             x:Name="ModelText"
+                                             Text="{x:Bind SelectedItem.Model, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="1"
@@ -370,7 +370,7 @@
                                                Text="Model hash:" />
                                     <TextBox Grid.Row="1" 
                                              Grid.Column="1"
-                                             x:Name="ModelHashText"
+                                             Text="{x:Bind SelectedItem.ModelHash, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="2" 
@@ -378,7 +378,7 @@
                                                Text="Generated Resolution:" />
                                     <TextBox Grid.Row="2" 
                                              Grid.Column="1" 
-                                             x:Name="GeneratedResolutionText"
+                                             Text="{x:Bind SelectedItem.GeneratedResolution, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="3" 
@@ -386,7 +386,7 @@
                                                Text="Steps:" />
                                     <TextBox Grid.Row="3" 
                                              Grid.Column="1" 
-                                             x:Name="StepsText"
+                                             Text="{x:Bind SelectedItem.Steps, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="4"
@@ -394,7 +394,7 @@
                                                Text="CFG scale:" />
                                     <TextBox Grid.Row="4" 
                                              Grid.Column="1" 
-                                             x:Name="CfgScaleText"
+                                             Text="{x:Bind SelectedItem.CfgScale, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="5"
@@ -402,7 +402,7 @@
                                                Text="Sampler:" />
                                     <TextBox Grid.Row="5" 
                                              Grid.Column="1"
-                                             x:Name="SamplerText"
+                                             Text="{x:Bind SelectedItem.Sampler, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="6" 
@@ -410,7 +410,7 @@
                                                Text="Seed:" />
                                     <TextBox Grid.Row="6"
                                              Grid.Column="1" 
-                                             x:Name="SeedText"
+                                             Text="{x:Bind SelectedItem.Seed, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
                                     <TextBlock Grid.Row="7"
@@ -418,7 +418,7 @@
                                                Text="Version:" />
                                     <TextBox Grid.Row="7" 
                                              Grid.Column="1" 
-                                             x:Name="VersionText"
+                                             Text="{x:Bind SelectedItem.Version, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
                                 </Grid>
                             </Expander>
@@ -431,18 +431,16 @@
                                     <TextBlock Text="Additional Parameters" 
                                                Style="{ThemeResource SubtitleTextBlockStyle}" />
                                 </Expander.Header>
-                                <ItemsRepeater x:Name="ExtraParametersRepeater" 
+                                <ItemsRepeater ItemsSource="{x:Bind SelectedItem.ParametersList, Mode=OneWay}"
                                                Margin="0,8,0,0">
                                     <ItemsRepeater.ItemTemplate>
                                         <DataTemplate x:DataType="local:KeyValuePair">
-                                            <Grid ColumnSpacing="12" 
-                                                  Margin="0,4">
+                                            <Grid ColumnSpacing="12" Margin="0,4">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" 
-                                                           Text="{x:Bind Key}" />
+                                                <TextBlock Grid.Column="0" Text="{x:Bind Key}" />
                                                 <TextBox Grid.Column="1"
                                                          Text="{x:Bind Value}"
                                                          Style="{StaticResource SelectableTextStyle}" />
@@ -476,7 +474,7 @@
                                                Text="Raw:" />
                                     <TextBox Grid.Row="0" 
                                              Grid.Column="1" 
-                                             x:Name="RawText"
+                                             Text="{x:Bind SelectedItem.Raw, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
                                 </Grid>
                             </Expander>
