@@ -37,6 +37,8 @@ public sealed partial class PhotoService : IDisposable
     public event EventHandler<PhotoChangedEventArgs> PhotoAdded;
     public event EventHandler<PhotoChangedEventArgs> PhotoRemoved;
     public event EventHandler<PhotoChangedEventArgs> ThumbnailLoaded;
+    public event EventHandler<ModelChangedEventArgs> ModelAdded;
+    public event EventHandler<ModelChangedEventArgs> ModelRemoved;
 
     public PhotoService()
     {
@@ -411,7 +413,21 @@ public sealed partial class PhotoService : IDisposable
             }
 
             FolderAdded?.Invoke(this, new FolderChangedEventArgs(folder.Name, folder.Path));
+        }
 
+        var models = _db.Photos
+            .Select(p => p.Model ?? "<unknown>")
+            .Distinct()
+            .OrderBy(m => m)
+            .ToList();
+
+        foreach (var model in models)
+        {
+            ModelAdded?.Invoke(this, new ModelChangedEventArgs(model));
+        }
+
+        foreach (var folder in folders)
+        {
             StartWatcher(folder.Path);
             QueueFolderScan(folder.Path);
         }
@@ -460,6 +476,13 @@ public sealed partial class PhotoService : IDisposable
         return photos
             .Where(p => Path.GetDirectoryName(p.Path) == folderPath)
             .ToList();
+    }
+
+    public async Task<List<Photo>> GetPhotosByModelAsync(string modelName)
+    {
+        return await _db.Photos
+            .Where(p => p.Model == modelName)
+            .ToListAsync();
     }
 
     /*

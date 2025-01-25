@@ -61,7 +61,12 @@
                         ItemInvoked="NavView_ItemInvoked">
 
             <NavigationView.MenuItems>
-                <NavigationViewItemHeader Content="Folders" />
+                <NavigationViewItem Content="Folders"
+                                    Icon="Folder"
+                                    MenuItemsSource="{x:Bind Folders}"/>
+                <NavigationViewItem Content="Models"
+                                    Icon="Contact" 
+                                    MenuItemsSource="{x:Bind Models}"/>
             </NavigationView.MenuItems>
 
             <NavigationView.FooterMenuItems>

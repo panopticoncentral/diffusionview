@@ -14,6 +14,7 @@ using WinRT.Interop;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.UI.Xaml.Input;
 
 namespace DiffusionView;
@@ -24,6 +25,9 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private string _currentFolder;
     private readonly ObservableCollection<PhotoItem> _currentPhotos = [];
+
+    public readonly ObservableCollection<NavigationViewItem> Folders = [];
+    public readonly ObservableCollection<NavigationViewItem> Models = [];
 
     private PhotoItem _selectedItem;
 
@@ -91,6 +95,8 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         _photoService.PhotoAdded += PhotoService_PhotoAdded;
         _photoService.PhotoRemoved += PhotoService_PhotoRemoved;
         _photoService.ThumbnailLoaded += PhotoService_ThumbnailLoaded;
+        _photoService.ModelAdded += PhotoService_ModelAdded;
+        _photoService.ModelRemoved += PhotoService_ModelRemoved;
         _photoService.Initialize();
     }
 
@@ -176,35 +182,21 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         {
             try
             {
+                var children = new ObservableCollection<NavigationViewItem>();
                 var rootItem = new NavigationViewItem
                 {
                     Content = e.Name,
                     Icon = new SymbolIcon(Symbol.Folder),
+                    MenuItemsSource = children,
                     Tag = e.Path
                 };
 
-                var folderHeaderIndex = -1;
-                for (var i = 0; i < NavView.MenuItems.Count; i++)
-                {
-                    if (NavView.MenuItems[i] is not NavigationViewItemHeader header ||
-                        header.Content?.ToString() != "Folders") continue;
-                    folderHeaderIndex = i;
-                    break;
-                }
-
-                if (folderHeaderIndex != -1)
-                {
-                    NavView.MenuItems.Insert(folderHeaderIndex + 1, rootItem);
-                }
-                else
-                {
-                    NavView.MenuItems.Add(rootItem);
-                }
+                Folders.Add(rootItem);
 
                 var folder = await StorageFolder.GetFolderFromPathAsync(e.Path);
                 var subFolders = await folder.GetFoldersAsync();
 
-                await AddSubFolderItemsAsync(rootItem, subFolders);
+                await AddSubFolderItemsAsync(children, subFolders);
             }
             catch (Exception)
             {
@@ -274,6 +266,25 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         });
     }
 
+    private void PhotoService_ModelAdded(object sender, ModelChangedEventArgs e)
+    {
+        if (DispatcherQueue == null) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            Models.Add(new NavigationViewItem
+            {
+                Content = e.Name,
+                Icon = new SymbolIcon(Symbol.Contact),
+                Tag = e.Name
+            });
+        });
+    }
+
+    private void PhotoService_ModelRemoved(object sender, ModelChangedEventArgs e)
+    {
+        throw new NotImplementedException();
+    }
+
     private async void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
         try
@@ -285,7 +296,15 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 await AddFolder();
             }
 
-            await SelectFolder(item);
+            if (item.Icon is SymbolIcon { Symbol: Symbol.Folder } && item.Tag is string folderPath)
+            {
+                await SelectFolder(folderPath);
+            }
+
+            if (item.Icon is SymbolIcon { Symbol: Symbol.Contact } && item.Tag is string modelName)
+            {
+                await SelectModel(modelName);
+            }
         }
         catch (Exception)
         {
@@ -429,26 +448,27 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         }
     }
     
-    private static async Task AddSubFolderItemsAsync(NavigationViewItem parentItem, IReadOnlyList<StorageFolder> folders)
+    private static async Task AddSubFolderItemsAsync(ObservableCollection<NavigationViewItem> children, IReadOnlyList<StorageFolder> folders)
     {
         foreach (var folder in folders)
         {
             try
             {
-                // Create navigation item for this subfolder
+                var subChildren = new ObservableCollection<NavigationViewItem>();
                 var subItem = new NavigationViewItem
                 {
                     Content = folder.Name,
                     Icon = new SymbolIcon(Symbol.Folder),
+                    MenuItemsSource = subChildren,
                     Tag = folder.Path
                 };
 
-                parentItem.MenuItems.Add(subItem);
+                children.Add(subItem);
 
                 var subFolders = await folder.GetFoldersAsync();
                 if (subFolders.Count > 0)
                 {
-                    await AddSubFolderItemsAsync(subItem, subFolders);
+                    await AddSubFolderItemsAsync(subChildren, subFolders);
                 }
             }
             catch (Exception)
@@ -507,10 +527,8 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         await _photoService.AddFolderAsync(folder);
     }
 
-    private async Task SelectFolder(NavigationViewItem folderViewItem)
+    private async Task SelectFolder(string folderPath)
     {
-        // Get the folder path from the navigation item's Tag property
-        var folderPath = (string)folderViewItem.Tag;
         if (string.IsNullOrEmpty(folderPath)) return;
 
         // Clear the current selection and folder state
@@ -533,6 +551,29 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         SinglePhotoImage.Source = null;
 
         // Ensure we're in grid view mode
+        GridView.Visibility = Visibility.Visible;
+        SinglePhotoView.Visibility = Visibility.Collapsed;
+    }
+
+    private async Task SelectModel(string modelName)
+    {
+        var photos =
+            (await _photoService
+                .GetPhotosByModelAsync(modelName == "<unknown>" ? null : modelName))
+            .Select(p => new PhotoItem(p));
+
+        SelectedItem = null;
+        _currentFolder = null;
+        _currentPhotos.Clear();
+
+        foreach (var photo in photos)
+        {
+            _currentPhotos.Add(photo);
+        }
+
+        SelectedItem = null;
+        SinglePhotoImage.Source = null;
+
         GridView.Visibility = Visibility.Visible;
         SinglePhotoView.Visibility = Visibility.Collapsed;
     }
