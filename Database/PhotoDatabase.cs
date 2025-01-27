@@ -10,6 +10,7 @@ public sealed partial class PhotoDatabase : DbContext
 {
     public DbSet<Folder> Folders { get; set; }
     public DbSet<Photo> Photos { get; set; }
+    public DbSet<Model> Models { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {

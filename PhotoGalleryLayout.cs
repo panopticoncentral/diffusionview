@@ -40,6 +40,7 @@ public partial class PhotoGalleryLayout : VirtualizingLayout
 
         while (currentIndex < context.ItemCount)
         {
+            var photo = context.GetItemAt(currentIndex);
             var element = context.GetOrCreateElementAt(currentIndex) as FrameworkElement;
             if (element == null) break;
 

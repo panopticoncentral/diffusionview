@@ -97,7 +97,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         _photoService.ThumbnailLoaded += PhotoService_ThumbnailLoaded;
         _photoService.ModelAdded += PhotoService_ModelAdded;
         _photoService.ModelRemoved += PhotoService_ModelRemoved;
-        _photoService.Initialize();
+        _ = _photoService.InitializeAsync();
     }
 
     private void MainGrid_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -271,12 +271,28 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
-            Models.Add(new NavigationViewItem
+            var modelItem = Models.SingleOrDefault(m => (string)m.Content == e.Name);
+            if (modelItem == null)
             {
-                Content = e.Name,
-                Icon = new SymbolIcon(Symbol.Contact),
-                Tag = e.Name
-            });
+                modelItem = new NavigationViewItem
+                {
+                    Content = e.Name,
+                    Icon = new SymbolIcon(Symbol.Contact)
+                };
+
+                var versions = new ObservableCollection<NavigationViewItem>();
+                modelItem.MenuItemsSource = versions;
+
+                Models.Add(modelItem);
+            }
+
+            ((ObservableCollection<NavigationViewItem>)modelItem.MenuItemsSource).Add(
+                new NavigationViewItem
+                {
+                    Content = e.Version,
+                    Icon = new SymbolIcon(Symbol.Contact),
+                    Tag = e.Hash
+                });
         });
     }
 
@@ -301,9 +317,9 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 await SelectFolder(folderPath);
             }
 
-            if (item.Icon is SymbolIcon { Symbol: Symbol.Contact } && item.Tag is string modelName)
+            if (item.Icon is SymbolIcon { Symbol: Symbol.Contact } && item.Tag is long modelHash)
             {
-                await SelectModel(modelName);
+                await SelectModel(modelHash);
             }
         }
         catch (Exception)
@@ -555,11 +571,10 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         SinglePhotoView.Visibility = Visibility.Collapsed;
     }
 
-    private async Task SelectModel(string modelName)
+    private async Task SelectModel(long modelHash)
     {
         var photos =
-            (await _photoService
-                .GetPhotosByModelAsync(modelName == "<unknown>" ? null : modelName))
+            (await _photoService.GetPhotosByModelAsync(modelHash))
             .Select(p => new PhotoItem(p));
 
         SelectedItem = null;
