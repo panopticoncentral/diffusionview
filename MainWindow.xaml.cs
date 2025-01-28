@@ -262,7 +262,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             var photo = _currentPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
             if (photo == null) return;
 
-            photo.Thumbnail = e.Photo.CreateBitmapImage();
+            photo.ThumbnailData = e.Photo.ThumbnailData;
         });
     }
 
@@ -569,6 +569,8 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         // Ensure we're in grid view mode
         GridView.Visibility = Visibility.Visible;
         SinglePhotoView.Visibility = Visibility.Collapsed;
+
+        GridView.ChangeView(null, 0, null);
     }
 
     private async Task SelectModel(long modelHash)
@@ -591,5 +593,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
         GridView.Visibility = Visibility.Visible;
         SinglePhotoView.Visibility = Visibility.Collapsed;
+
+        GridView.ChangeView(null, 0, null);
     }
 }

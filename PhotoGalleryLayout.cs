@@ -1,13 +1,42 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Windows.Foundation;
 
 namespace DiffusionView;
 
 public partial class PhotoGalleryLayout : VirtualizingLayout
 {
-    private readonly Dictionary<int, Rect> _elementBounds = new();
+    // Layout cache that includes version tracking
+    private class LayoutInfo
+    {
+        public double TotalHeight { get; set; }
+        public List<RowInfo> Rows { get; } = [];
+        // Track which items we've seen to detect changes
+        public Dictionary<int, double> ItemAspectRatios { get; } = new();
+    }
+
+    private class RowInfo
+    {
+        public double Y { get; set; }
+        public double Height { get; set; }
+        public List<ItemInfo> Items { get; } = new();
+        // Track the total width used by items in this row
+        public double UsedWidth { get; set; }
+    }
+
+    private class ItemInfo
+    {
+        public int Index { get; set; }
+        public double X { get; set; }
+        public double Width { get; set; }
+        public double AspectRatio { get; set; }
+    }
+
+    private LayoutInfo _layoutInfo;
+    private Size _lastAvailableSize;
 
     public double DesiredHeight
     {
@@ -29,91 +58,165 @@ public partial class PhotoGalleryLayout : VirtualizingLayout
         DependencyProperty.Register(nameof(Spacing), typeof(double), typeof(PhotoGalleryLayout),
             new PropertyMetadata(4d, (s, e) => ((PhotoGalleryLayout)s).InvalidateMeasure()));
 
-    protected override Size MeasureOverride(VirtualizingLayoutContext context, Size availableSize)
+    private static double GetAspectRatio(PhotoItem photoItem)
     {
-        if (availableSize.Width == 0 || context.ItemCount == 0)
-            return new Size(0, 0);
-
-        _elementBounds.Clear();
-        var items = new List<(int Index, UIElement Element, double AspectRatio)>();
-        var currentIndex = 0;
-
-        while (currentIndex < context.ItemCount)
-        {
-            var photo = context.GetItemAt(currentIndex);
-            var element = context.GetOrCreateElementAt(currentIndex) as FrameworkElement;
-            if (element == null) break;
-
-            if (element.DataContext is not PhotoItem photoItem) break;
-
-            var aspectRatio = (double)photoItem.Width / photoItem.Height;
-            if (double.IsNaN(aspectRatio) || aspectRatio == 0) aspectRatio = 1;
-
-            items.Add((currentIndex, element, aspectRatio));
-            currentIndex++;
-        }
-
-        if (items.Count == 0) return new Size(0, 0);
-
-        var totalHeight = 0d;
-        var currentRow = new List<(int Index, UIElement Element, double AspectRatio)>();
-        var remainingWidth = availableSize.Width;
-
-        foreach (var item in items)
-        {
-            var idealWidth = DesiredHeight * item.AspectRatio;
-
-            if (remainingWidth - idealWidth - Spacing >= 0 || currentRow.Count == 0)
-            {
-                currentRow.Add(item);
-                remainingWidth -= (idealWidth + Spacing);
-            }
-            else
-            {
-                LayoutRow(currentRow, availableSize.Width, DesiredHeight, totalHeight);
-                totalHeight += DesiredHeight + Spacing;
-
-                currentRow.Clear();
-                currentRow.Add(item);
-                remainingWidth = availableSize.Width - (idealWidth + Spacing);
-            }
-        }
-
-        if (currentRow.Count == 0) return new Size(availableSize.Width, totalHeight);
-
-        LayoutRow(currentRow, availableSize.Width, DesiredHeight, totalHeight);
-        totalHeight += DesiredHeight + Spacing;
-
-        return new Size(availableSize.Width, totalHeight);
+        var aspectRatio = (double)photoItem.Width / photoItem.Height;
+        return double.IsNaN(aspectRatio) || aspectRatio == 0 ? 1.0 : aspectRatio;
     }
 
-    private void LayoutRow(List<(int Index, UIElement Element, double AspectRatio)> row, double availableWidth, double rowHeight, double yOffset)
+    private bool NeedsLayout(VirtualizingLayoutContext context, Size availableSize)
     {
-        //var totalAspectRatio = row.Sum(item => item.AspectRatio);
-        //var scale = (availableWidth - Spacing * (row.Count - 1)) / (rowHeight * totalAspectRatio);
-        var xOffset = 0d;
-
-        foreach (var (index, element, aspectRatio) in row)
+        if (_layoutInfo == null 
+            || Math.Abs(_lastAvailableSize.Width - availableSize.Width) > double.Epsilon
+            || _layoutInfo.ItemAspectRatios.Count != context.ItemCount)
         {
-            var width = rowHeight * aspectRatio; // * scale;
+            return true;
+        }
+        
+        for (var i = 0; i < context.ItemCount; i++)
+        {
+            if (context.GetItemAt(i) is not PhotoItem photoItem)
+            {
+                return true;
+            }
 
-            element.Measure(new Size(width, rowHeight));
+            var aspectRatio = GetAspectRatio(photoItem);
 
-            var rect = new Rect(xOffset, yOffset, width, rowHeight);
-            _elementBounds[index] = rect;
+            if (!_layoutInfo.ItemAspectRatios.TryGetValue(i, out var cachedRatio) ||
+                Math.Abs(cachedRatio - aspectRatio) > double.Epsilon)
+            {
+                return true;
+            }
+        }
 
+        return false;
+    }
+
+    private void FinalizeRow(RowInfo row, double yOffset)
+    {
+        row.Height = DesiredHeight;
+        row.Y = yOffset;
+
+        var xOffset = 0d;
+        foreach (var item in row.Items)
+        {
+            var width = DesiredHeight * item.AspectRatio;
+            item.X = xOffset;
+            item.Width = width;
             xOffset += width + Spacing;
         }
     }
 
-    protected override Size ArrangeOverride(VirtualizingLayoutContext context, Size finalSize)
+    private LayoutInfo CalculateLayout(VirtualizingLayoutContext context, Size availableSize)
     {
+        var layout = new LayoutInfo();
+        var currentRow = new RowInfo();
+        var yOffset = 0d;
+
         for (var i = 0; i < context.ItemCount; i++)
         {
-            if (!_elementBounds.TryGetValue(i, out var bounds)) continue;
-            var element = context.GetOrCreateElementAt(i);
-            element.Arrange(bounds);
+            if (context.GetItemAt(i) is not PhotoItem photoItem)
+            {
+                continue;
+            }
+
+            var aspectRatio = GetAspectRatio(photoItem);
+            layout.ItemAspectRatios[i] = aspectRatio;
+
+            var itemInfo = new ItemInfo
+            {
+                Index = i,
+                AspectRatio = aspectRatio
+            };
+
+            var idealWidth = DesiredHeight * aspectRatio;
+
+            if (currentRow.UsedWidth + idealWidth + (currentRow.Items.Count > 0 ? Spacing : 0) > availableSize.Width
+                && currentRow.Items.Count > 0)
+            {
+                FinalizeRow(currentRow, yOffset);
+                layout.Rows.Add(currentRow);
+                yOffset += currentRow.Height + Spacing;
+                currentRow = new RowInfo();
+            }
+
+            currentRow.Items.Add(itemInfo);
+            currentRow.UsedWidth += idealWidth + (currentRow.Items.Count > 1 ? Spacing : 0);
         }
+
+        if (currentRow.Items.Count > 0)
+        {
+            FinalizeRow(currentRow, yOffset);
+            layout.Rows.Add(currentRow);
+            yOffset += currentRow.Height + Spacing;
+        }
+
+        layout.TotalHeight = yOffset;
+        return layout;
+    }
+
+    private IEnumerable<RowInfo> GetVisibleRows(Rect visibleWindow)
+    {
+        if (_layoutInfo == null) yield break;
+
+        var rows = 
+            from row in _layoutInfo.Rows
+            let rowRect = new Rect(0, row.Y, _lastAvailableSize.Width, row.Height)
+            where rowRect.Bottom >= visibleWindow.Top - row.Height &&
+                  rowRect.Top <= visibleWindow.Bottom + row.Height
+            select row;
+
+        foreach (var row in rows)
+        {
+            yield return row;
+        }
+    }
+
+    protected override Size MeasureOverride(VirtualizingLayoutContext context, Size availableSize)
+    {
+        if (context.ItemCount == 0 || availableSize.Width <= 0)
+        {
+            _layoutInfo = new LayoutInfo();
+            return new Size(0, 0);
+        }
+
+        if (NeedsLayout(context, availableSize))
+        {
+            _layoutInfo = CalculateLayout(context, availableSize);
+            _lastAvailableSize = availableSize;
+        }
+
+        var visibleWindow = context.RealizationRect;
+        var visibleRows = GetVisibleRows(visibleWindow);
+
+        foreach (var row in visibleRows)
+        {
+            foreach (var item in row.Items)
+            {
+                var element = context.GetOrCreateElementAt(item.Index);
+                element.Measure(new Size(item.Width, row.Height));
+            }
+        }
+
+        return new Size(availableSize.Width, _layoutInfo.TotalHeight);
+    }
+
+    protected override Size ArrangeOverride(VirtualizingLayoutContext context, Size finalSize)
+    {
+        if (_layoutInfo == null) return finalSize;
+
+        var visibleWindow = context.RealizationRect;
+        var visibleRows = GetVisibleRows(visibleWindow);
+
+        foreach (var row in visibleRows)
+        {
+            foreach (var item in row.Items)
+            {
+                var element = context.GetOrCreateElementAt(item.Index);
+                element.Arrange(new Rect(item.X, row.Y, item.Width, row.Height));
+            }
+        }
+
         return finalSize;
     }
 }

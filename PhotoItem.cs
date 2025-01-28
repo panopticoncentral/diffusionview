@@ -18,7 +18,8 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _resolution = $"{photo.Width} x {photo.Height}";
     private int _width = photo.Width;
     private int _height = photo.Height;
-    private BitmapImage _thumbnail = photo.CreateBitmapImage();
+    private BitmapImage _thumbnail;
+    private byte[] _thumbnailData = photo.ThumbnailData;
     private bool _isSelected;
     private string _lastModified = photo.LastModified.ToString("g");
 
@@ -87,8 +88,25 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
 
     public BitmapImage Thumbnail
     {
-        get => _thumbnail;
+        get
+        {
+            if (_thumbnail == null && _thumbnailData != null)
+            {
+                _thumbnail = Photo.CreateBitmapImage(_thumbnailData);
+            }
+            return _thumbnail;
+        }
         set => SetProperty(ref _thumbnail, value);
+    }
+
+    public byte[] ThumbnailData
+    {
+        get => _thumbnailData;
+        set
+        {
+            SetProperty(ref _thumbnailData, value);
+            Thumbnail = null;
+        }
     }
 
     // Stable Diffusion metadata properties

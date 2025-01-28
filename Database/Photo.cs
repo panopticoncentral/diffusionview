@@ -43,14 +43,14 @@ public sealed class Photo
     [MaxLength(1024)]
     public string Raw { get; set; }
 
-    public BitmapImage CreateBitmapImage()
+    public static BitmapImage CreateBitmapImage(byte[] thumbnailData)
     {
-        if (ThumbnailData == null)
+        if (thumbnailData == null)
             return null;
 
         var image = new BitmapImage();
         using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-        stream.WriteAsync(ThumbnailData.AsBuffer()).GetResults();
+        stream.WriteAsync(thumbnailData.AsBuffer()).GetResults();
         stream.Seek(0);
         image.SetSource(stream);
         return image;

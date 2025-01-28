@@ -185,7 +185,7 @@ public sealed partial class PhotoService : IDisposable
         if (currentLine != lines.Length) throw new FormatException();
     }
 
-    public async Task<(string Name, string Version)?> FetchModelInformationAsync(long modelHash)
+    public static async Task<(string Name, string Version)?> FetchModelInformationAsync(long modelHash)
     {
         var url = $"https://civitai.com/api/v1/model-versions/by-hash/{modelHash:X10}";
         var client = new HttpClient();
@@ -269,7 +269,7 @@ public sealed partial class PhotoService : IDisposable
                         {
                             Id = photo.ModelHash,
                             Name = modelInfo?.Name ?? photo.Model,
-                            Version = modelInfo?.Version ?? photo.ModelHash.ToString("X16")
+                            Version = modelInfo?.Version ?? photo.ModelHash.ToString("X10")
                         };
                         _db.Models.Add(model);
                         ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.Id, model.Name, model.Version));
@@ -368,17 +368,17 @@ public sealed partial class PhotoService : IDisposable
         var queryOptions = new QueryOptions(CommonFileQuery.OrderByName, [".png"]);
         var query = folder.CreateFileQueryWithOptions(queryOptions);
 
-        var files = await query.GetFilesAsync();
+        var files = (await query.GetFilesAsync()).Select(f => f.Path).ToList();
         foreach (var file in files)
         {
-            var photo = await _db.Photos.FirstOrDefaultAsync(p => p.Path == file.Path);
+            var photo = await _db.Photos.FirstOrDefaultAsync(p => p.Path == file);
             if (photo == null)
             {
-                await HandleFileChangeAsync(file.Path, FileChangeType.Created);
+                await HandleFileChangeAsync(file, FileChangeType.Created);
             }
             else if (photo.ThumbnailData == null)
             {
-                _thumbnailQueue.Writer.TryWrite((file.Path, photo.Id));
+                _thumbnailQueue.Writer.TryWrite((file, photo.Id));
             }
         }
     }
@@ -441,7 +441,7 @@ public sealed partial class PhotoService : IDisposable
 
             if (photo == null) return;
 
-            var thumbnail = await LoadScaledImageAsync(file, 300);
+            var thumbnail = await LoadScaledImageAsync(file, 200);
             photo.ThumbnailData = thumbnail;
             await _db.SaveChangesAsync();
 
