@@ -1,21 +1,19 @@
+using DiffusionView.Service;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.System;
-using DiffusionView.Service;
 using WinRT.Interop;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.IO;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.UI.Xaml.Input;
 
 namespace DiffusionView;
 
@@ -94,7 +92,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         _photoService.FolderRemoved += PhotoService_FolderRemoved;
         _photoService.PhotoAdded += PhotoService_PhotoAdded;
         _photoService.PhotoRemoved += PhotoService_PhotoRemoved;
-        _photoService.ThumbnailLoaded += PhotoService_ThumbnailLoaded;
         _photoService.ModelAdded += PhotoService_ModelAdded;
         _photoService.ModelRemoved += PhotoService_ModelRemoved;
         _ = _photoService.InitializeAsync();
@@ -102,47 +99,54 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private void MainGrid_KeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key != VirtualKey.Left && e.Key != VirtualKey.Right) return;
-
-        if (_currentPhotos.Count == 0) return;
-
-        if (SinglePhotoView.Visibility == Visibility.Visible)
+        switch (e.Key)
         {
-            if (e.Key == VirtualKey.Left)
+            case VirtualKey.Left:
             {
-                PreviousButton_Click(null, null);
+                if (_currentPhotos.Count == 0) return;
+
+                if (SinglePhotoView.Visibility == Visibility.Visible)
+                {
+                    PreviousButton_Click(null, null);
+                } 
+                else if (SelectedItem == null)
+                {
+                    SelectedItem = _currentPhotos[0];
+                }
+                else
+                {
+                    var currentIndex = _currentPhotos.IndexOf(SelectedItem);
+                    var newIndex = currentIndex > 0 ? currentIndex - 1 : _currentPhotos.Count - 1;
+                    SelectedItem = _currentPhotos[newIndex];
+                }
+
+                e.Handled = true;
+                break;
             }
-            else
+
+            case VirtualKey.Right:
             {
-                NextButton_Click(null, null);
+                if (_currentPhotos.Count == 0) return;
+
+                if (SinglePhotoView.Visibility == Visibility.Visible)
+                {
+                    NextButton_Click(null, null);
+                }
+                else if (SelectedItem == null)
+                {
+                    SelectedItem = _currentPhotos[0];
+                }
+                else
+                {
+                    var currentIndex = _currentPhotos.IndexOf(SelectedItem);
+                    var newIndex = (currentIndex + 1) % _currentPhotos.Count;
+                    SelectedItem = _currentPhotos[newIndex];
+                }
+
+                e.Handled = true;
+                break;
             }
-
-            e.Handled = true;
-            return;
         }
-
-        if (SelectedItem == null)
-        {
-            SelectedItem = _currentPhotos[0];
-            e.Handled = true;
-            return;
-        }
-
-        var currentIndex = _currentPhotos.IndexOf(SelectedItem);
-        if (currentIndex == -1) return;
-
-        int newIndex;
-        if (e.Key == VirtualKey.Left)
-        {
-            newIndex = currentIndex > 0 ? currentIndex - 1 : _currentPhotos.Count - 1;
-        }
-        else
-        {
-            newIndex = (currentIndex + 1) % _currentPhotos.Count;
-        }
-
-        SelectedItem = _currentPhotos[newIndex];
-        e.Handled = true;
     }
 
     private void PhotoItem_Click(object sender, RoutedEventArgs e)
@@ -155,8 +159,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private void ScrollIntoView(FrameworkElement element)
     {
-        if (GridView?.Content is not ItemsRepeater repeater)
-            return;
+        if (GridView?.Content is not ItemsRepeater repeater) return;
 
         var transform = element.TransformToVisual(repeater);
         var elementBounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, element.ActualWidth, element.ActualHeight));
@@ -254,23 +257,12 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         });
     }
 
-    private void PhotoService_ThumbnailLoaded(object _, PhotoChangedEventArgs e)
-    {
-        if (DispatcherQueue == null) return;
-        DispatcherQueue.TryEnqueue(() =>
-        {
-            var photo = _currentPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
-            if (photo == null) return;
-
-            photo.ThumbnailData = e.Photo.ThumbnailData;
-        });
-    }
-
     private void PhotoService_ModelAdded(object sender, ModelChangedEventArgs e)
     {
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
+            ObservableCollection<NavigationViewItem> versions;
             var modelItem = Models.SingleOrDefault(m => (string)m.Content == e.Name);
             if (modelItem == null)
             {
@@ -280,13 +272,31 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                     Icon = new SymbolIcon(Symbol.Contact)
                 };
 
-                var versions = new ObservableCollection<NavigationViewItem>();
+                versions = [];
                 modelItem.MenuItemsSource = versions;
 
-                Models.Add(modelItem);
+                int index;
+                for (index = 0; index < Models.Count; index++)
+                {
+                    var item = Models[index];
+                    if (string.Compare((string)item.Content, e.Name, StringComparison.InvariantCultureIgnoreCase) > 0) break;
+                }
+
+                Models.Insert(index, modelItem);
+            }
+            else
+            {
+                versions = (ObservableCollection<NavigationViewItem>)modelItem.MenuItemsSource;
             }
 
-            ((ObservableCollection<NavigationViewItem>)modelItem.MenuItemsSource).Add(
+            int versionIndex;
+            for (versionIndex = 0; versionIndex < versions.Count; versionIndex++)
+            {
+                var version = versions[versionIndex];
+                if (string.Compare((string)version.Content, e.Version, StringComparison.InvariantCultureIgnoreCase) > 0) break;
+            }
+
+            versions.Insert(versionIndex,
                 new NavigationViewItem
                 {
                     Content = e.Version,
@@ -553,7 +563,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         _currentPhotos.Clear();
 
         // Load all photos for the selected folder
-        var photos = (await _photoService.GetPhotosForFolderAsync(folderPath))
+        var photos = (await PhotoService.GetPhotosForFolderAsync(folderPath))
             .Select(p => new PhotoItem(p));
 
         // Add each photo to the observable collection
@@ -576,7 +586,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     private async Task SelectModel(long modelHash)
     {
         var photos =
-            (await _photoService.GetPhotosByModelAsync(modelHash))
+            (await PhotoService.GetPhotosByModelAsync(modelHash))
             .Select(p => new PhotoItem(p));
 
         SelectedItem = null;
