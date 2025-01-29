@@ -22,18 +22,12 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     private readonly PhotoService _photoService;
 
     private string _currentFolder;
-    private readonly ObservableCollection<PhotoItem> _currentPhotos = [];
 
+    public readonly ObservableCollection<PhotoItem> Photos = [];
     public readonly ObservableCollection<NavigationViewItem> Folders = [];
     public readonly ObservableCollection<NavigationViewItem> Models = [];
 
     private PhotoItem _selectedItem;
-
-    private bool _fileInfoExpanded = true;
-    private bool _promptsExpanded = true;
-    private bool _parametersExpanded = true;
-    private bool _extraParametersExpanded = true;
-    private bool _rawExpanded = true;
 
     public PhotoItem SelectedItem
     {
@@ -49,7 +43,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             {
                 _selectedItem.IsSelected = false;
                 _selectedItem.UpdateVisualState(GetButtonForItem(_selectedItem));
-                UpdatePreviewPane(null);
             }
 
             _selectedItem = value;
@@ -61,7 +54,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             var button = GetButtonForItem(_selectedItem);
             _selectedItem.UpdateVisualState(button);
             ScrollIntoView(button);
-            UpdatePreviewPane(_selectedItem);
         }
     }
 
@@ -71,21 +63,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     {
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
-
-        FileInfoExpander.Expanding += (s, e) => _fileInfoExpanded = true;
-        FileInfoExpander.Collapsed += (s, e) => _fileInfoExpanded = false;
-
-        PromptsExpander.Expanding += (s, e) => _promptsExpanded = true;
-        PromptsExpander.Collapsed += (s, e) => _promptsExpanded = false;
-
-        ParametersExpander.Expanding += (s, e) => _parametersExpanded = true;
-        ParametersExpander.Collapsed += (s, e) => _parametersExpanded = false;
-
-        ExtraParametersExpander.Expanding += (s, e) => _extraParametersExpanded = true;
-        ExtraParametersExpander.Collapsed += (s, e) => _extraParametersExpanded = false;
-
-        RawExpander.Expanding += (s, e) => _rawExpanded = true;
-        RawExpander.Collapsed += (s, e) => _rawExpanded = false;
 
         _photoService = new PhotoService();
         _photoService.FolderAdded += PhotoService_FolderAdded;
@@ -97,55 +74,74 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         _ = _photoService.InitializeAsync();
     }
 
-    private void MainGrid_KeyDown(object sender, KeyRoutedEventArgs e)
+    private async void MainGrid_KeyDown(object sender, KeyRoutedEventArgs e)
     {
-        switch (e.Key)
+        try
         {
-            case VirtualKey.Left:
+            switch (e.Key)
             {
-                if (_currentPhotos.Count == 0) return;
+                case VirtualKey.Left:
+                {
+                    if (Photos.Count == 0) return;
 
-                if (SinglePhotoView.Visibility == Visibility.Visible)
-                {
-                    PreviousButton_Click(null, null);
-                } 
-                else if (SelectedItem == null)
-                {
-                    SelectedItem = _currentPhotos[0];
-                }
-                else
-                {
-                    var currentIndex = _currentPhotos.IndexOf(SelectedItem);
-                    var newIndex = currentIndex > 0 ? currentIndex - 1 : _currentPhotos.Count - 1;
-                    SelectedItem = _currentPhotos[newIndex];
+                    if (SinglePhotoView.Visibility == Visibility.Visible)
+                    {
+                        PreviousButton_Click(null, null);
+                    }
+                    else if (SelectedItem == null)
+                    {
+                        SelectedItem = Photos[0];
+                    }
+                    else
+                    {
+                        var currentIndex = Photos.IndexOf(SelectedItem);
+                        var newIndex = currentIndex > 0 ? currentIndex - 1 : Photos.Count - 1;
+                        SelectedItem = Photos[newIndex];
+                    }
+
+                    e.Handled = true;
+                    break;
                 }
 
-                e.Handled = true;
-                break;
+                case VirtualKey.Right:
+                {
+                    if (Photos.Count == 0) return;
+
+                    if (SinglePhotoView.Visibility == Visibility.Visible)
+                    {
+                        NextButton_Click(null, null);
+                    }
+                    else if (SelectedItem == null)
+                    {
+                        SelectedItem = Photos[0];
+                    }
+                    else
+                    {
+                        var currentIndex = Photos.IndexOf(SelectedItem);
+                        var newIndex = (currentIndex + 1) % Photos.Count;
+                        SelectedItem = Photos[newIndex];
+                    }
+
+                    e.Handled = true;
+                    break;
+                }
+
+                case VirtualKey.Delete:
+                    e.Handled = await DeleteSelectedItemAsync();
+                    break;
+
+                case VirtualKey.Escape:
+                    if (SinglePhotoView.Visibility == Visibility.Visible)
+                    {
+                        BackToGridButton_Click(null, null);
+                        e.Handled = true;
+                    }
+                    break;
             }
-
-            case VirtualKey.Right:
-            {
-                if (_currentPhotos.Count == 0) return;
-
-                if (SinglePhotoView.Visibility == Visibility.Visible)
-                {
-                    NextButton_Click(null, null);
-                }
-                else if (SelectedItem == null)
-                {
-                    SelectedItem = _currentPhotos[0];
-                }
-                else
-                {
-                    var currentIndex = _currentPhotos.IndexOf(SelectedItem);
-                    var newIndex = (currentIndex + 1) % _currentPhotos.Count;
-                    SelectedItem = _currentPhotos[newIndex];
-                }
-
-                e.Handled = true;
-                break;
-            }
+        }
+        catch (Exception)
+        {
+            // For now, ignore exceptions
         }
     }
 
@@ -155,27 +151,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
         SelectedItem = photo;
         ((Grid)Content).Focus(FocusState.Programmatic);
-    }
-
-    private void ScrollIntoView(FrameworkElement element)
-    {
-        if (GridView?.Content is not ItemsRepeater repeater) return;
-
-        var transform = element.TransformToVisual(repeater);
-        var elementBounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, element.ActualWidth, element.ActualHeight));
-
-        var scrollViewer = GridView;
-        var viewportHeight = scrollViewer.ViewportHeight;
-        var verticalOffset = scrollViewer.VerticalOffset;
-
-        if (elementBounds.Top < verticalOffset)
-        {
-            scrollViewer.ChangeView(null, elementBounds.Top, null);
-        }
-        else if (elementBounds.Bottom > verticalOffset + viewportHeight)
-        {
-            scrollViewer.ChangeView(null, elementBounds.Bottom - viewportHeight, null);
-        }
     }
 
     private void PhotoService_FolderAdded(object _, FolderChangedEventArgs e)
@@ -215,7 +190,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         {
             if (_currentFolder == e.Path)
             {
-                _currentPhotos.Clear();
+                Photos.Clear();
                 _currentFolder = null;
             }
 
@@ -230,30 +205,26 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private void PhotoService_PhotoRemoved(object _, PhotoChangedEventArgs e)
     {
-        if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
-            if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
-            var photo = _currentPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
+            var photo = Photos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
             if (photo == null) return;
             if (SelectedItem == photo)
             {
                 SelectedItem = null;
             }
-            _currentPhotos.Remove(photo);
+            Photos.Remove(photo);
         });
     }
 
     private void PhotoService_PhotoAdded(object _, PhotoChangedEventArgs e)
     {
-        if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
-            if (_currentFolder == null || Path.GetDirectoryName(e.Photo.Path) != _currentFolder) return;
             var photo = new PhotoItem(e.Photo);
-            _currentPhotos.Add(photo);
+            Photos.Add(photo);
         });
     }
 
@@ -308,7 +279,30 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private void PhotoService_ModelRemoved(object sender, ModelChangedEventArgs e)
     {
-        throw new NotImplementedException();
+        if (DispatcherQueue == null) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var modelItem = Models.SingleOrDefault(m => (string)m.Content == e.Name);
+            if (modelItem == null) return;
+
+            var versions = (ObservableCollection<NavigationViewItem>)modelItem.MenuItemsSource;
+
+            int versionIndex;
+            for (versionIndex = 0; versionIndex < versions.Count; versionIndex++)
+            {
+                var version = versions[versionIndex];
+                if (string.Compare((string)version.Content, e.Version, StringComparison.InvariantCultureIgnoreCase) > 0) break;
+            }
+
+            if (versionIndex == versions.Count) return;
+            if (versions.Count > 1)
+            {
+                versions.RemoveAt(versionIndex);
+                return;
+            }
+
+            Models.Remove(modelItem);
+        });
     }
 
     private async void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
@@ -338,7 +332,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         }
     }
 
-    private void PhotoItem_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+    private void PhotoItem_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if (sender is not Button { DataContext: PhotoItem photo }) return;
 
@@ -350,47 +344,65 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     {
         if (SelectedItem == null) return;
 
-        var currentIndex = _currentPhotos.IndexOf(SelectedItem);
+        var currentIndex = Photos.IndexOf(SelectedItem);
 
         var previousIndex = currentIndex - 1;
         if (previousIndex < 0)
         {
-            previousIndex = _currentPhotos.Count - 1;
+            previousIndex = Photos.Count - 1;
         }
 
-        SelectedItem = _currentPhotos[previousIndex];
-        UpdateSinglePhotoView(_currentPhotos[previousIndex]);
+        SelectedItem = Photos[previousIndex];
+        UpdateSinglePhotoView(Photos[previousIndex]);
     }
 
     private void NextButton_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedItem == null) return;
 
-        var currentIndex = _currentPhotos.IndexOf(SelectedItem);
+        var currentIndex = Photos.IndexOf(SelectedItem);
 
-        var nextIndex = (currentIndex + 1) % _currentPhotos.Count;
+        var nextIndex = (currentIndex + 1) % Photos.Count;
 
-        SelectedItem = _currentPhotos[nextIndex];
-        UpdateSinglePhotoView(_currentPhotos[nextIndex]);
+        SelectedItem = Photos[nextIndex];
+        UpdateSinglePhotoView(Photos[nextIndex]);
     }
 
     private Button GetButtonForItem(PhotoItem photo)
     {
         if (GridView.Content is not ItemsRepeater repeater) return null;
 
-        for (var i = 0; i < _currentPhotos.Count; i++)
+        for (var i = 0; i < Photos.Count; i++)
         {
             var element = repeater.TryGetElement(i) as Button;
-            if (element?.DataContext == photo)
-            {
-                return element;
-            }
+            if (element?.DataContext == photo) return element;
         }
 
         return new Button
         {
             DataContext = photo
         };
+    }
+
+    private void ScrollIntoView(FrameworkElement element)
+    {
+        if (GridView?.Content is not ItemsRepeater repeater) return;
+
+        var transform = element.TransformToVisual(repeater);
+        var elementBounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, element.ActualWidth, element.ActualHeight));
+
+        var scrollViewer = GridView;
+        var viewportHeight = scrollViewer.ViewportHeight;
+        var verticalOffset = scrollViewer.VerticalOffset;
+
+        if (elementBounds.Top < verticalOffset)
+        {
+            scrollViewer.ChangeView(null, elementBounds.Top, null);
+        }
+        else if (elementBounds.Bottom > verticalOffset + viewportHeight)
+        {
+            scrollViewer.ChangeView(null, elementBounds.Bottom - viewportHeight, null);
+        }
     }
 
     private void UpdateSinglePhotoView(PhotoItem photo)
@@ -412,8 +424,8 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     {
         if (SelectedItem == null) return;
 
-        PreviousButton.IsEnabled = _currentPhotos.Count > 1;
-        NextButton.IsEnabled = _currentPhotos.Count > 1;
+        PreviousButton.IsEnabled = Photos.Count > 1;
+        NextButton.IsEnabled = Photos.Count > 1;
     }
 
     private void SwitchToSinglePhotoView()
@@ -425,6 +437,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         GridView.Visibility = Visibility.Collapsed;
         SinglePhotoView.Visibility = Visibility.Visible;
     }
+
     private void BackToGridButton_Click(object sender, RoutedEventArgs e)
     {
         GridView.Visibility = Visibility.Visible;
@@ -450,30 +463,14 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     {
         try
         {
-            if (SelectedItem == null) return;
-
-            var dialog = new ContentDialog
-            {
-                Title = "Delete Photo",
-                Content = $"Are you sure you want to delete {SelectedItem.FileName}?",
-                PrimaryButtonText = "Delete",
-                CloseButtonText = "Cancel",
-                DefaultButton = ContentDialogButton.Close,
-                XamlRoot = Content.XamlRoot
-            };
-
-            var result = await dialog.ShowAsync();
-            if (result != ContentDialogResult.Primary) return;
-
-            var file = await StorageFile.GetFileFromPathAsync(SelectedItem.FilePath);
-            await file.DeleteAsync();
+            await DeleteSelectedItemAsync();
         }
         catch (Exception)
         {
             // For the moment, ignore exceptions
         }
     }
-    
+
     private static async Task AddSubFolderItemsAsync(ObservableCollection<NavigationViewItem> children, IReadOnlyList<StorageFolder> folders)
     {
         foreach (var folder in folders)
@@ -504,36 +501,26 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         }
     }
 
-    private void RestoreExpanderStates()
+    private async Task<bool> DeleteSelectedItemAsync()
     {
-        FileInfoExpander.IsExpanded = _fileInfoExpanded;
-        PromptsExpander.IsExpanded = _promptsExpanded;
-        ParametersExpander.IsExpanded = _parametersExpanded;
-        ExtraParametersExpander.IsExpanded = _extraParametersExpanded;
-        RawExpander.IsExpanded = _rawExpanded;
-    }
+        if (SelectedItem == null) return false;
 
-    private void UpdatePreviewPane(PhotoItem photo)
-    {
-        if (photo == null)
+        var dialog = new ContentDialog
         {
-            return;
-        }
+            Title = "Delete Photo",
+            Content = $"Are you sure you want to delete {SelectedItem.FileName}?",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = Content.XamlRoot
+        };
 
-        try
-        {
-            // Preserve expander states before updating content
-            var previousStates = (_fileInfoExpanded, _promptsExpanded, _parametersExpanded, _extraParametersExpanded, _rawExpanded);
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary) return false;
 
-            // Restore previous expander states
-            (_fileInfoExpanded, _promptsExpanded, _parametersExpanded, _extraParametersExpanded, _rawExpanded) = previousStates;
-            RestoreExpanderStates();
-        }
-        catch (Exception)
-        {
-            // If there's an error updating the UI, clear everything
-            UpdatePreviewPane(null);
-        }
+        var file = await StorageFile.GetFileFromPathAsync(SelectedItem.FilePath);
+        await file.DeleteAsync();
+        return true;
     }
 
     private async Task AddFolder()
@@ -560,7 +547,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         // Clear the current selection and folder state
         SelectedItem = null;
         _currentFolder = folderPath;
-        _currentPhotos.Clear();
+        Photos.Clear();
 
         // Load all photos for the selected folder
         var photos = (await PhotoService.GetPhotosForFolderAsync(folderPath))
@@ -569,7 +556,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         // Add each photo to the observable collection
         foreach (var photo in photos)
         {
-            _currentPhotos.Add(photo);
+            Photos.Add(photo);
         }
 
         // Reset the view state
@@ -591,11 +578,11 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
         SelectedItem = null;
         _currentFolder = null;
-        _currentPhotos.Clear();
+        Photos.Clear();
 
         foreach (var photo in photos)
         {
-            _currentPhotos.Add(photo);
+            Photos.Add(photo);
         }
 
         SelectedItem = null;

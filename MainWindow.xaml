@@ -88,7 +88,7 @@
                     <ScrollViewer x:Name="GridView"
                                   Padding="8,0,8,8"
                                   Background="{ThemeResource CardStrokeColorDefaultBrush}">
-                        <ItemsRepeater ItemsSource="{x:Bind _currentPhotos}">
+                        <ItemsRepeater ItemsSource="{x:Bind Photos}">
                             <ItemsRepeater.Layout>
                                 <local:PhotoGalleryLayout DesiredHeight="200" 
                                                           Spacing="4"/>
