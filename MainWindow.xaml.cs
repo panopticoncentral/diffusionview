@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
@@ -223,8 +222,23 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
-            var photo = new PhotoItem(e.Photo);
-            Photos.Add(photo);
+            var item = NavView.SelectedItem as NavigationViewItem;
+            if (item == null) return;
+
+            switch (item.Icon)
+            {
+                case SymbolIcon { Symbol: Symbol.Folder }
+                    when item.Tag is string folderPath
+                         && e.Photo.Path.StartsWith(folderPath, StringComparison.InvariantCultureIgnoreCase):
+                case SymbolIcon { Symbol: Symbol.Contact }
+                    when item.Tag is long modelHash
+                         && e.Photo.ModelHash == modelHash:
+                {
+                    var photo = new PhotoItem(e.Photo);
+                    Photos.Add(photo);
+                    break;
+                }
+            }
         });
     }
 
