@@ -47,7 +47,12 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             _selectedItem = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedItem)));
 
-            if (_selectedItem == null) return;
+            if (_selectedItem == null)
+            {
+                GridView.Visibility = Visibility.Visible;
+                SinglePhotoView.Visibility = Visibility.Collapsed;
+                return;
+            }
 
             _selectedItem.IsSelected = true;
             var button = GetButtonForItem(_selectedItem);
@@ -209,11 +214,30 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         {
             var photo = Photos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
             if (photo == null) return;
+
             if (SelectedItem == photo)
             {
-                SelectedItem = null;
+                var currentIndex = Photos.IndexOf(photo);
+                Photos.Remove(photo);
+
+                if (Photos.Count > 0)
+                {
+                    var nextIndex = currentIndex >= Photos.Count ? 0 : currentIndex;
+                    SelectedItem = Photos[nextIndex];
+                    if (SinglePhotoView.Visibility == Visibility.Visible)
+                    {
+                        UpdateSinglePhotoView(Photos[nextIndex]);
+                    }
+                }
+                else
+                {
+                    SelectedItem = null;
+                }
             }
-            Photos.Remove(photo);
+            else
+            {
+                Photos.Remove(photo);
+            }
         });
     }
 
