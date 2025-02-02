@@ -36,6 +36,9 @@ public sealed partial class PhotoDatabase : DbContext
             .IsUnique();
 
         modelBuilder.Entity<Photo>()
+            .HasIndex(p => p.ModelHash);
+
+        modelBuilder.Entity<Photo>()
             .Property(e => e.OtherParameters)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),

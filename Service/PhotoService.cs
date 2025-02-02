@@ -262,7 +262,7 @@ public sealed partial class PhotoService : IDisposable
                     photo.Height = (int)imageProps.Height;
                     photo.LastModified = props.DateModified.DateTime;
 
-                    var thumbnail = await LoadScaledImageAsync(file, 200);
+                    var thumbnail = await LoadScaledImageAsync(file, 400);
                     photo.ThumbnailData = thumbnail;
 
                     var stream = await file.OpenStreamForReadAsync();

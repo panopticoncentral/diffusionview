@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
@@ -27,6 +28,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     public readonly ObservableCollection<NavigationViewItem> Models = [];
 
     private PhotoItem _selectedItem;
+    private PhotoItem _focusedItem;
 
     public PhotoItem SelectedItem
     {
@@ -46,16 +48,35 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             _selectedItem = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedItem)));
 
-            if (_selectedItem == null)
+            if (_selectedItem == null) return;
+            _selectedItem.IsSelected = true;
+            var button = GetButtonForItem(_selectedItem);
+            ScrollIntoView(button);
+        }
+    }
+
+    public PhotoItem FocusedItem
+    {
+        get => _focusedItem;
+        set
+        {
+            if (_focusedItem == value)
+            {
+                return;
+            }
+
+            _focusedItem = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(FocusedItem)));
+
+            if (_focusedItem == null)
             {
                 GridView.Visibility = Visibility.Visible;
                 SinglePhotoView.Visibility = Visibility.Collapsed;
                 return;
             }
 
-            _selectedItem.IsSelected = true;
-            var button = GetButtonForItem(_selectedItem);
-            ScrollIntoView(button);
+            SwitchToSinglePhotoView();
+            UpdateSinglePhotoView(_focusedItem);
         }
     }
 
@@ -213,7 +234,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             var photo = Photos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
             if (photo == null) return;
 
-            if (SelectedItem == photo)
+            if (FocusedItem == photo)
             {
                 var currentIndex = Photos.IndexOf(photo);
                 Photos.Remove(photo);
@@ -221,15 +242,11 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 if (Photos.Count > 0)
                 {
                     var nextIndex = currentIndex >= Photos.Count ? 0 : currentIndex;
-                    SelectedItem = Photos[nextIndex];
-                    if (SinglePhotoView.Visibility == Visibility.Visible)
-                    {
-                        UpdateSinglePhotoView(Photos[nextIndex]);
-                    }
+                    FocusedItem = Photos[nextIndex];
                 }
                 else
                 {
-                    SelectedItem = null;
+                    FocusedItem = null;
                 }
             }
             else
@@ -251,7 +268,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             {
                 case SymbolIcon { Symbol: Symbol.Folder }
                     when item.Tag is string folderPath
-                         && e.Photo.Path.StartsWith(folderPath, StringComparison.InvariantCultureIgnoreCase):
+                         && Path.GetDirectoryName(e.Photo.Path) == folderPath:
                 case SymbolIcon { Symbol: Symbol.Contact }
                     when item.Tag is long modelHash
                          && e.Photo.ModelHash == modelHash:
@@ -372,15 +389,14 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     {
         if (sender is not Button { DataContext: PhotoItem photo }) return;
 
-        SelectedItem = photo;
-        SwitchToSinglePhotoView();
+        FocusedItem = photo;
     }
 
     private void PreviousButton_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem == null) return;
+        if (FocusedItem == null) return;
 
-        var currentIndex = Photos.IndexOf(SelectedItem);
+        var currentIndex = Photos.IndexOf(FocusedItem);
 
         var previousIndex = currentIndex - 1;
         if (previousIndex < 0)
@@ -388,20 +404,18 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             previousIndex = Photos.Count - 1;
         }
 
-        SelectedItem = Photos[previousIndex];
-        UpdateSinglePhotoView(Photos[previousIndex]);
+        FocusedItem = Photos[previousIndex];
     }
 
     private void NextButton_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem == null) return;
+        if (FocusedItem == null) return;
 
-        var currentIndex = Photos.IndexOf(SelectedItem);
+        var currentIndex = Photos.IndexOf(FocusedItem);
 
         var nextIndex = (currentIndex + 1) % Photos.Count;
 
-        SelectedItem = Photos[nextIndex];
-        UpdateSinglePhotoView(Photos[nextIndex]);
+        FocusedItem = Photos[nextIndex];
     }
 
     private Button GetButtonForItem(PhotoItem photo)
@@ -458,7 +472,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private void UpdateNavigationButtonStates()
     {
-        if (SelectedItem == null) return;
+        if (FocusedItem == null) return;
 
         PreviousButton.IsEnabled = Photos.Count > 1;
         NextButton.IsEnabled = Photos.Count > 1;
@@ -466,7 +480,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private void SwitchToSinglePhotoView()
     {
-        if (SelectedItem == null) return;
+        if (FocusedItem == null) return;
 
         UpdateSinglePhotoView(SelectedItem);
 
@@ -484,9 +498,9 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     {
         try
         {
-            if (SelectedItem == null) return;
+            if (FocusedItem == null) return;
     
-            var file = await StorageFile.GetFileFromPathAsync(SelectedItem.FilePath);
+            var file = await StorageFile.GetFileFromPathAsync(FocusedItem.FilePath);
             await Launcher.LaunchFileAsync(file);
         }
         catch (Exception)
@@ -582,6 +596,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
         // Clear the current selection and folder state
         SelectedItem = null;
+        FocusedItem = null;
         _currentFolder = folderPath;
         Photos.Clear();
 
@@ -597,6 +612,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
         // Reset the view state
         SelectedItem = null;
+        FocusedItem = null;
         SinglePhotoImage.Source = null;
 
         // Ensure we're in grid view mode
@@ -613,6 +629,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             .Select(p => new PhotoItem(p));
 
         SelectedItem = null;
+        FocusedItem = null;
         _currentFolder = null;
         Photos.Clear();
 
@@ -622,6 +639,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         }
 
         SelectedItem = null;
+        FocusedItem = null;
         SinglePhotoImage.Source = null;
 
         GridView.Visibility = Visibility.Visible;

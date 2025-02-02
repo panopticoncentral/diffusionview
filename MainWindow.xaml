@@ -76,172 +76,171 @@
             </NavigationView.FooterMenuItems>
 
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" 
-                                      MinWidth="400"/>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="320" 
-                                      MinWidth="200"/>
-                </Grid.ColumnDefinitions>
-
-                <Grid Grid.Column="0">
-                    <Grid.Resources>
-                        <Style x:Key="PhotoSelectionCheckBoxStyle" TargetType="CheckBox">
-                            <Setter Property="Background" Value="{ThemeResource SystemAltHighColor}"/>
-                            <Setter Property="Foreground" Value="{ThemeResource SystemBaseHighColor}"/>
-                            <Setter Property="BorderBrush" Value="{ThemeResource SystemBaseMediumColor}"/>
-                            <Setter Property="MinWidth" Value="20"/>
-                            <Setter Property="MinHeight" Value="20"/>
-                            <Setter Property="UseSystemFocusVisuals" Value="True"/>
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="CheckBox">
-                                        <Grid x:Name="RootGrid" Background="Transparent">
-                                            <Grid x:Name="CheckBoxBackground"
+                <Grid.Resources>
+                    <Style x:Key="PhotoSelectionCheckBoxStyle" TargetType="CheckBox">
+                        <Setter Property="Background" Value="{ThemeResource SystemAltHighColor}"/>
+                        <Setter Property="Foreground" Value="{ThemeResource SystemBaseHighColor}"/>
+                        <Setter Property="BorderBrush" Value="{ThemeResource SystemBaseMediumColor}"/>
+                        <Setter Property="MinWidth" Value="20"/>
+                        <Setter Property="MinHeight" Value="20"/>
+                        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="CheckBox">
+                                    <Grid x:Name="RootGrid" Background="Transparent">
+                                        <Grid x:Name="CheckBoxBackground"
                           Background="{ThemeResource SystemAltHighColor}"
                           CornerRadius="4"
                           Width="20" 
                           Height="20">
-                                                <FontIcon x:Name="CheckGlyph"
+                                            <FontIcon x:Name="CheckGlyph"
                                   FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                   Glyph="&#xE73E;"
                                   FontSize="16"
                                   Foreground="{ThemeResource SystemBaseHighColor}"
                                   Opacity="0"/>
-                                            </Grid>
-
-                                            <VisualStateManager.VisualStateGroups>
-                                                <VisualStateGroup x:Name="CombinedStates">
-                                                    <VisualState x:Name="UncheckedNormal"/>
-
-                                                    <VisualState x:Name="UncheckedPointerOver"/>
-
-                                                    <VisualState x:Name="CheckedNormal">
-                                                        <VisualState.Setters>
-                                                            <Setter Target="CheckGlyph.Opacity" Value="1"/>
-                                                        </VisualState.Setters>
-                                                    </VisualState>
-
-                                                    <VisualState x:Name="CheckedPointerOver">
-                                                        <VisualState.Setters>
-                                                            <Setter Target="CheckGlyph.Opacity" Value="1"/>
-                                                        </VisualState.Setters>
-                                                    </VisualState>
-                                                </VisualStateGroup>
-                                            </VisualStateManager.VisualStateGroups>
                                         </Grid>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </Grid.Resources>
 
-                    <ScrollViewer x:Name="GridView"
-                                  Padding="8,0,8,8"
-                                  Background="{ThemeResource CardStrokeColorDefaultBrush}">
-                        <ItemsRepeater ItemsSource="{x:Bind Photos}">
-                            <ItemsRepeater.Layout>
-                                <local:PhotoGalleryLayout DesiredHeight="200" 
+                                        <VisualStateManager.VisualStateGroups>
+                                            <VisualStateGroup x:Name="CombinedStates">
+                                                <VisualState x:Name="UncheckedNormal"/>
+
+                                                <VisualState x:Name="UncheckedPointerOver"/>
+
+                                                <VisualState x:Name="CheckedNormal">
+                                                    <VisualState.Setters>
+                                                        <Setter Target="CheckGlyph.Opacity" Value="1"/>
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="CheckedPointerOver">
+                                                    <VisualState.Setters>
+                                                        <Setter Target="CheckGlyph.Opacity" Value="1"/>
+                                                    </VisualState.Setters>
+                                                </VisualState>
+                                            </VisualStateGroup>
+                                        </VisualStateManager.VisualStateGroups>
+                                    </Grid>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Grid.Resources>
+
+                <ScrollViewer x:Name="GridView"
+                              Padding="8,0,8,8"
+                              Background="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <ItemsRepeater ItemsSource="{x:Bind Photos}">
+                        <ItemsRepeater.Layout>
+                            <local:PhotoGalleryLayout DesiredHeight="400" 
                                                           Spacing="4"/>
-                            </ItemsRepeater.Layout>
+                        </ItemsRepeater.Layout>
 
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="local:PhotoItem">
-                                    <Button x:Name="ImageButton" 
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="local:PhotoItem">
+                                <Button x:Name="ImageButton" 
                                             Background="Transparent" 
                                             BorderThickness="0" 
                                             Padding="0" 
                                             Click="PhotoItem_Click" 
                                             DoubleTapped="PhotoItem_DoubleTapped">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Grid Margin="4">
-                                                    <VisualStateManager.VisualStateGroups>
-                                                        <VisualStateGroup x:Name="CommonStates">
-                                                            <VisualState x:Name="Normal">
-                                                                <Storyboard>
-                                                                    <DoubleAnimation Storyboard.TargetName="ContentPresenter"
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Grid Margin="4">
+                                                <VisualStateManager.VisualStateGroups>
+                                                    <VisualStateGroup x:Name="CommonStates">
+                                                        <VisualState x:Name="Normal">
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="ContentPresenter"
                                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
                                        To="1"
                                        Duration="0:0:0.1"/>
-                                                                    <DoubleAnimation Storyboard.TargetName="ContentPresenter"
+                                                                <DoubleAnimation Storyboard.TargetName="ContentPresenter"
                                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
                                        To="1"
                                        Duration="0:0:0.1"/>
-                                                                </Storyboard>
-                                                            </VisualState>
-                                                            <VisualState x:Name="PointerOver">
-                                                                <VisualState.Setters>
-                                                                    <Setter Target="HoverBorder.Opacity" Value="1"/>
-                                                                </VisualState.Setters>
-                                                            </VisualState>
-                                                            <VisualState x:Name="Pressed">
-                                                                <Storyboard>
-                                                                    <DoubleAnimation Storyboard.TargetName="ContentPresenter"
+                                                            </Storyboard>
+                                                        </VisualState>
+                                                        <VisualState x:Name="PointerOver">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="HoverBorder.Opacity" Value="1"/>
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                        <VisualState x:Name="Pressed">
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="ContentPresenter"
                                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
                                        To="0.95"
                                        Duration="0:0:0.1"/>
-                                                                    <DoubleAnimation Storyboard.TargetName="ContentPresenter"
+                                                                <DoubleAnimation Storyboard.TargetName="ContentPresenter"
                                        Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
                                        To="0.95"
                                        Duration="0:0:0.1"/>
-                                                                </Storyboard>
-                                                                <VisualState.Setters>
-                                                                    <Setter Target="HoverBorder.Opacity" Value="0.8"/>
-                                                                </VisualState.Setters>
-                                                            </VisualState>
-                                                        </VisualStateGroup>
-                                                    </VisualStateManager.VisualStateGroups>
+                                                            </Storyboard>
+                                                            <VisualState.Setters>
+                                                                <Setter Target="HoverBorder.Opacity" Value="0.8"/>
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                    </VisualStateGroup>
+                                                </VisualStateManager.VisualStateGroups>
 
-                                                    <Grid x:Name="ContentPresenter"
+                                                <Grid x:Name="ContentPresenter"
               RenderTransformOrigin="0.5,0.5">
-                                                        <Grid.RenderTransform>
-                                                            <ScaleTransform/>
-                                                        </Grid.RenderTransform>
+                                                    <Grid.RenderTransform>
+                                                        <ScaleTransform/>
+                                                    </Grid.RenderTransform>
 
-                                                        <Image Source="{Binding Thumbnail, Mode=OneWay}" 
+                                                    <Image Source="{Binding Thumbnail, Mode=OneWay}" 
                    Stretch="UniformToFill"/>
-                                                        <Border x:Name="HoverBorder" 
+                                                    <Border x:Name="HoverBorder" 
                     Background="{ThemeResource SystemBaseLowColor}" 
                     Opacity="0"/>
-                                                        <CheckBox x:Name="SelectionCheckBox"
+                                                    <CheckBox x:Name="SelectionCheckBox"
                       IsChecked="{Binding IsSelected, Mode=TwoWay}"
                       Style="{StaticResource PhotoSelectionCheckBoxStyle}"
                       HorizontalAlignment="Right"
                       VerticalAlignment="Top"
                       Margin="8"/>
-                                                    </Grid>
                                                 </Grid>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsRepeater.ItemTemplate>
-                        </ItemsRepeater>
-                    </ScrollViewer>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </ScrollViewer>
 
-                    <Grid x:Name="SinglePhotoView" 
-                          Visibility="Collapsed">
-                        <Grid>
-                            <Button VerticalAlignment="Top"
+                <Grid x:Name="SinglePhotoView" 
+                      Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" 
+                                      MinWidth="400"/>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="320" 
+                                      MinWidth="200"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0">
+                        <Button VerticalAlignment="Top"
                                     HorizontalAlignment="Left"
                                     Margin="8"
                                     Click="BackToGridButton_Click">
-                                <StackPanel Orientation="Horizontal" 
+                            <StackPanel Orientation="Horizontal" 
                                             Spacing="8">
-                                    <FontIcon FontFamily="Segoe MDL2 Assets" 
+                                <FontIcon FontFamily="Segoe MDL2 Assets" 
                                               Glyph="&#xE72B;"/>
-                                </StackPanel>
-                            </Button>
+                            </StackPanel>
+                        </Button>
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                                <Button x:Name="PreviousButton"
+                            <Button x:Name="PreviousButton"
                                         Grid.Column="0"
                                         Width="48"
                                         Background="{ThemeResource SystemControlBackgroundAltHighBrush}"
@@ -249,17 +248,17 @@
                                         VerticalAlignment="Center"
                                         Margin="8,0,0,0"
                                         Click="PreviousButton_Click">
-                                    <FontIcon FontFamily="Segoe MDL2 Assets" 
+                                <FontIcon FontFamily="Segoe MDL2 Assets" 
                                               Glyph="&#xE76B;"
                                               FontSize="24"/>
-                                </Button>
+                            </Button>
 
-                                <Image x:Name="SinglePhotoImage"
+                            <Image x:Name="SinglePhotoImage"
                                        Grid.Column="1"
                                        Margin="48"
                                        Stretch="Uniform"/>
 
-                                <Button x:Name="NextButton"
+                            <Button x:Name="NextButton"
                                         Grid.Column="2"
                                         Width="48"
                                         Background="{ThemeResource SystemControlBackgroundAltHighBrush}"
@@ -267,308 +266,307 @@
                                         VerticalAlignment="Center"
                                         Margin="0,0,8,0"
                                         Click="NextButton_Click">
-                                    <FontIcon FontFamily="Segoe MDL2 Assets" 
+                                <FontIcon FontFamily="Segoe MDL2 Assets" 
                                               Glyph="&#xE76C;"
                                               FontSize="24"/>
-                                </Button>
-                            </Grid>
+                            </Button>
                         </Grid>
                     </Grid>
-                </Grid>
 
-                <controls:GridSplitter Grid.Column="1"
+                    <controls:GridSplitter Grid.Column="1"
                                        Background="{ThemeResource SystemControlForegroundChromeMediumBrush}"
                                        Opacity="0.5"
                                        ResizeBehavior="PreviousAndNext"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Stretch"/>
 
-                <Grid Grid.Column="2" 
+                    <Grid Grid.Column="2" 
                       Margin="12">
-                    <Grid.Resources>
-                        <Style x:Key="SelectableTextStyle" 
+                        <Grid.Resources>
+                            <Style x:Key="SelectableTextStyle" 
                                TargetType="TextBox">
-                            <Setter Property="IsReadOnly" 
+                                <Setter Property="IsReadOnly" 
                                     Value="True"/>
-                            <Setter Property="BorderThickness" 
+                                <Setter Property="BorderThickness" 
                                     Value="0"/>
-                            <Setter Property="Background" 
+                                <Setter Property="Background" 
                                     Value="Transparent"/>
-                            <Setter Property="TextWrapping" 
+                                <Setter Property="TextWrapping" 
                                     Value="Wrap"/>
-                            <Setter Property="Padding" 
+                                <Setter Property="Padding" 
                                     Value="0"/>
-                            <Setter Property="MinHeight" 
+                                <Setter Property="MinHeight" 
                                     Value="0"/>
-                        </Style>
-                    </Grid.Resources>
-                    <ScrollViewer>
-                        <StackPanel Spacing="8" 
+                            </Style>
+                        </Grid.Resources>
+                        <ScrollViewer>
+                            <StackPanel Spacing="8" 
                                     Margin="0,0,8,12"
                                     HorizontalAlignment="Stretch">
 
-                            <Expander x:Name="FileInfoExpander" 
+                                <Expander x:Name="FileInfoExpander" 
                                       IsExpanded="True"
                                       HorizontalAlignment="Stretch"
                                       HorizontalContentAlignment="Stretch">
-                                <Expander.Header>
-                                    <TextBlock Text="File Information" 
+                                    <Expander.Header>
+                                        <TextBlock Text="File Information" 
                                                Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                </Expander.Header>
-                                <Grid ColumnSpacing="12" 
+                                    </Expander.Header>
+                                    <Grid ColumnSpacing="12" 
                                       RowSpacing="8" 
                                       Margin="0,8,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Row="0" 
+                                        <TextBlock Grid.Row="0" 
                                                Grid.Column="0" 
                                                Text="File name:" />
-                                    <TextBox Grid.Row="0" 
+                                        <TextBox Grid.Row="0" 
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.FileName, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.FileName, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="1" 
+                                        <TextBlock Grid.Row="1" 
                                                Grid.Column="0" 
                                                Text="Path:" />
-                                    <TextBox Grid.Row="1"
+                                        <TextBox Grid.Row="1"
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.FilePath, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.FilePath, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="2"
+                                        <TextBlock Grid.Row="2"
                                                Grid.Column="0" 
                                                Text="Last modified:" />
-                                    <TextBox Grid.Row="2" 
+                                        <TextBox Grid.Row="2" 
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.LastModified, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.LastModified, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="3" 
+                                        <TextBlock Grid.Row="3" 
                                                Grid.Column="0"
                                                Text="Size:" />
-                                    <TextBox Grid.Row="3" 
+                                        <TextBox Grid.Row="3" 
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.FileSize, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.FileSize, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="4" 
+                                        <TextBlock Grid.Row="4" 
                                                Grid.Column="0" 
                                                Text="Resolution:" />
-                                    <TextBox Grid.Row="4" 
+                                        <TextBox Grid.Row="4" 
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.Resolution, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.Resolution, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
-                                </Grid>
-                            </Expander>
+                                    </Grid>
+                                </Expander>
 
-                            <Expander x:Name="PromptsExpander" 
+                                <Expander x:Name="PromptsExpander" 
                                       IsExpanded="True"
                                       HorizontalAlignment="Stretch"
                                       HorizontalContentAlignment="Stretch">
-                                <Expander.Header>
-                                    <TextBlock Text="Prompts" 
+                                    <Expander.Header>
+                                        <TextBlock Text="Prompts" 
                                                Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                </Expander.Header>
-                                <StackPanel Spacing="8"
+                                    </Expander.Header>
+                                    <StackPanel Spacing="8"
                                             Margin="0,8,0,0">
-                                    <TextBlock Text="Positive prompt:" 
+                                        <TextBlock Text="Positive prompt:" 
                                                Style="{ThemeResource BodyTextBlockStyle}" />
-                                    <TextBox Text="{x:Bind SelectedItem.Prompt, Mode=OneWay}"
+                                        <TextBox Text="{x:Bind FocusedItem.Prompt, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}"
                                              MinHeight="60"
                                              AcceptsReturn="True" />
 
-                                    <TextBlock Text="Negative prompt:" 
+                                        <TextBlock Text="Negative prompt:" 
                                                Style="{ThemeResource BodyTextBlockStyle}"
                                                Margin="0,8,0,0" />
-                                    <TextBox Text="{x:Bind SelectedItem.NegativePrompt, Mode=OneWay}"
+                                        <TextBox Text="{x:Bind FocusedItem.NegativePrompt, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}"
                                              MinHeight="60"
                                              AcceptsReturn="True" />
-                                </StackPanel>
-                            </Expander>
+                                    </StackPanel>
+                                </Expander>
 
-                            <Expander x:Name="ParametersExpander" 
+                                <Expander x:Name="ParametersExpander" 
                                       IsExpanded="True"
                                       HorizontalAlignment="Stretch"
                                       HorizontalContentAlignment="Stretch">
-                                <Expander.Header>
-                                    <TextBlock Text="Generation Parameters" 
+                                    <Expander.Header>
+                                        <TextBlock Text="Generation Parameters" 
                                                Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                </Expander.Header>
-                                <Grid ColumnSpacing="12" 
+                                    </Expander.Header>
+                                    <Grid ColumnSpacing="12" 
                                       RowSpacing="8"
                                       Margin="0,8,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Row="0" 
+                                        <TextBlock Grid.Row="0" 
                                                Grid.Column="0" 
                                                Text="Model:" />
-                                    <TextBox Grid.Row="0" 
+                                        <TextBox Grid.Row="0" 
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.Model, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.Model, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="1"
+                                        <TextBlock Grid.Row="1"
                                                Grid.Column="0"
                                                Text="Model hash:" />
-                                    <TextBox Grid.Row="1" 
+                                        <TextBox Grid.Row="1" 
                                              Grid.Column="1"
-                                             Text="{x:Bind SelectedItem.ModelHash, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.ModelHash, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="2" 
+                                        <TextBlock Grid.Row="2" 
                                                Grid.Column="0" 
                                                Text="Generated Resolution:" />
-                                    <TextBox Grid.Row="2" 
+                                        <TextBox Grid.Row="2" 
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.GeneratedResolution, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.GeneratedResolution, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="3" 
+                                        <TextBlock Grid.Row="3" 
                                                Grid.Column="0" 
                                                Text="Steps:" />
-                                    <TextBox Grid.Row="3" 
+                                        <TextBox Grid.Row="3" 
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.Steps, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.Steps, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="4"
+                                        <TextBlock Grid.Row="4"
                                                Grid.Column="0" 
                                                Text="CFG scale:" />
-                                    <TextBox Grid.Row="4" 
+                                        <TextBox Grid.Row="4" 
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.CfgScale, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.CfgScale, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="5"
+                                        <TextBlock Grid.Row="5"
                                                Grid.Column="0"
                                                Text="Sampler:" />
-                                    <TextBox Grid.Row="5" 
+                                        <TextBox Grid.Row="5" 
                                              Grid.Column="1"
-                                             Text="{x:Bind SelectedItem.Sampler, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.Sampler, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="6" 
+                                        <TextBlock Grid.Row="6" 
                                                Grid.Column="0"
                                                Text="Seed:" />
-                                    <TextBox Grid.Row="6"
+                                        <TextBox Grid.Row="6"
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.Seed, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.Seed, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
 
-                                    <TextBlock Grid.Row="7"
+                                        <TextBlock Grid.Row="7"
                                                Grid.Column="0" 
                                                Text="Version:" />
-                                    <TextBox Grid.Row="7" 
+                                        <TextBox Grid.Row="7" 
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.Version, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.Version, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
-                                </Grid>
-                            </Expander>
+                                    </Grid>
+                                </Expander>
 
-                            <Expander x:Name="ExtraParametersExpander" 
+                                <Expander x:Name="ExtraParametersExpander" 
                                       IsExpanded="True"
                                       HorizontalAlignment="Stretch"
                                       HorizontalContentAlignment="Stretch">
-                                <Expander.Header>
-                                    <TextBlock Text="Additional Parameters" 
+                                    <Expander.Header>
+                                        <TextBlock Text="Additional Parameters" 
                                                Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                </Expander.Header>
-                                <ItemsRepeater ItemsSource="{x:Bind SelectedItem.ParametersList, Mode=OneWay}"
+                                    </Expander.Header>
+                                    <ItemsRepeater ItemsSource="{x:Bind FocusedItem.ParametersList, Mode=OneWay}"
                                                Margin="0,8,0,0">
-                                    <ItemsRepeater.ItemTemplate>
-                                        <DataTemplate x:DataType="local:KeyValuePair">
-                                            <Grid ColumnSpacing="12" Margin="0,4">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{x:Bind Key}" />
-                                                <TextBox Grid.Column="1"
+                                        <ItemsRepeater.ItemTemplate>
+                                            <DataTemplate x:DataType="local:KeyValuePair">
+                                                <Grid ColumnSpacing="12" Margin="0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{x:Bind Key}" />
+                                                    <TextBox Grid.Column="1"
                                                          Text="{x:Bind Value}"
                                                          Style="{StaticResource SelectableTextStyle}" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsRepeater.ItemTemplate>
-                                </ItemsRepeater>
-                            </Expander>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsRepeater.ItemTemplate>
+                                    </ItemsRepeater>
+                                </Expander>
 
-                            <Expander x:Name="RawExpander" 
+                                <Expander x:Name="RawExpander" 
                                       IsExpanded="True"
                                       HorizontalAlignment="Stretch"
                                       HorizontalContentAlignment="Stretch">
-                                <Expander.Header>
-                                    <TextBlock Text="Raw" 
+                                    <Expander.Header>
+                                        <TextBlock Text="Raw" 
                                                Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                </Expander.Header>
-                                <Grid ColumnSpacing="12" 
+                                    </Expander.Header>
+                                    <Grid ColumnSpacing="12" 
                                       RowSpacing="8"
                                       Margin="0,8,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Row="0" 
+                                        <TextBlock Grid.Row="0" 
                                                Grid.Column="0" 
                                                Text="Raw:" />
-                                    <TextBox Grid.Row="0" 
+                                        <TextBox Grid.Row="0" 
                                              Grid.Column="1" 
-                                             Text="{x:Bind SelectedItem.Raw, Mode=OneWay}"
+                                             Text="{x:Bind FocusedItem.Raw, Mode=OneWay}"
                                              Style="{StaticResource SelectableTextStyle}" />
-                                </Grid>
-                            </Expander>
+                                    </Grid>
+                                </Expander>
 
-                            <StackPanel Orientation="Horizontal" 
+                                <StackPanel Orientation="Horizontal" 
                                         Spacing="8" 
                                         Margin="0,8,0,0">
-                                <Button Click="OpenButton_Click">
-                                    <StackPanel Orientation="Horizontal" 
+                                    <Button Click="OpenButton_Click">
+                                        <StackPanel Orientation="Horizontal" 
                                                 Spacing="8">
-                                        <FontIcon FontFamily="Segoe MDL2 Assets" 
+                                            <FontIcon FontFamily="Segoe MDL2 Assets" 
                                                   Glyph="&#xE8A7;"/>
-                                        <TextBlock Text="Open" />
-                                    </StackPanel>
-                                </Button>
-                                <Button Click="DeleteButton_Click">
-                                    <StackPanel Orientation="Horizontal" 
+                                            <TextBlock Text="Open" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Click="DeleteButton_Click">
+                                        <StackPanel Orientation="Horizontal" 
                                                 Spacing="8">
-                                        <FontIcon FontFamily="Segoe MDL2 Assets"
+                                            <FontIcon FontFamily="Segoe MDL2 Assets"
                                                   Glyph="&#xE74D;"/>
-                                        <TextBlock Text="Delete" />
-                                    </StackPanel>
-                                </Button>
+                                            <TextBlock Text="Delete" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
+                        </ScrollViewer>
+                    </Grid>
                 </Grid>
             </Grid>
         </NavigationView>
