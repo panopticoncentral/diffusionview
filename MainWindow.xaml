@@ -85,6 +85,57 @@
                 </Grid.ColumnDefinitions>
 
                 <Grid Grid.Column="0">
+                    <Grid.Resources>
+                        <Style x:Key="PhotoSelectionCheckBoxStyle" TargetType="CheckBox">
+                            <Setter Property="Background" Value="{ThemeResource SystemAltHighColor}"/>
+                            <Setter Property="Foreground" Value="{ThemeResource SystemBaseHighColor}"/>
+                            <Setter Property="BorderBrush" Value="{ThemeResource SystemBaseMediumColor}"/>
+                            <Setter Property="MinWidth" Value="20"/>
+                            <Setter Property="MinHeight" Value="20"/>
+                            <Setter Property="UseSystemFocusVisuals" Value="True"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="CheckBox">
+                                        <Grid x:Name="RootGrid" Background="Transparent">
+                                            <Grid x:Name="CheckBoxBackground"
+                          Background="{ThemeResource SystemAltHighColor}"
+                          CornerRadius="4"
+                          Width="20" 
+                          Height="20">
+                                                <FontIcon x:Name="CheckGlyph"
+                                  FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                  Glyph="&#xE73E;"
+                                  FontSize="16"
+                                  Foreground="{ThemeResource SystemBaseHighColor}"
+                                  Opacity="0"/>
+                                            </Grid>
+
+                                            <VisualStateManager.VisualStateGroups>
+                                                <VisualStateGroup x:Name="CombinedStates">
+                                                    <VisualState x:Name="UncheckedNormal"/>
+
+                                                    <VisualState x:Name="UncheckedPointerOver"/>
+
+                                                    <VisualState x:Name="CheckedNormal">
+                                                        <VisualState.Setters>
+                                                            <Setter Target="CheckGlyph.Opacity" Value="1"/>
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+
+                                                    <VisualState x:Name="CheckedPointerOver">
+                                                        <VisualState.Setters>
+                                                            <Setter Target="CheckGlyph.Opacity" Value="1"/>
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                </VisualStateGroup>
+                                            </VisualStateManager.VisualStateGroups>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Grid.Resources>
+
                     <ScrollViewer x:Name="GridView"
                                   Padding="8,0,8,8"
                                   Background="{ThemeResource CardStrokeColorDefaultBrush}">
@@ -106,47 +157,59 @@
                                             <ControlTemplate TargetType="Button">
                                                 <Grid Margin="4">
                                                     <VisualStateManager.VisualStateGroups>
-                                                        <VisualStateGroup x:Name="SelectionStates">
-                                                            <VisualState x:Name="Selected">
-                                                                <VisualState.Setters>
-                                                                    <Setter Target="SelectionBorder.Visibility"
-                                                                            Value="Visible"/>
-                                                                </VisualState.Setters>
-                                                            </VisualState>
-                                                            <VisualState x:Name="Unselected">
-                                                                <VisualState.Setters>
-                                                                    <Setter Target="SelectionBorder.Visibility" 
-                                                                            Value="Collapsed"/>
-                                                                </VisualState.Setters>
-                                                            </VisualState>
-                                                        </VisualStateGroup>
                                                         <VisualStateGroup x:Name="CommonStates">
-                                                            <VisualState x:Name="Normal" />
+                                                            <VisualState x:Name="Normal">
+                                                                <Storyboard>
+                                                                    <DoubleAnimation Storyboard.TargetName="ContentPresenter"
+                                       Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                       To="1"
+                                       Duration="0:0:0.1"/>
+                                                                    <DoubleAnimation Storyboard.TargetName="ContentPresenter"
+                                       Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                       To="1"
+                                       Duration="0:0:0.1"/>
+                                                                </Storyboard>
+                                                            </VisualState>
                                                             <VisualState x:Name="PointerOver">
                                                                 <VisualState.Setters>
-                                                                    <Setter Target="HoverBorder.Opacity" 
-                                                                            Value="1"/>
+                                                                    <Setter Target="HoverBorder.Opacity" Value="1"/>
                                                                 </VisualState.Setters>
                                                             </VisualState>
                                                             <VisualState x:Name="Pressed">
+                                                                <Storyboard>
+                                                                    <DoubleAnimation Storyboard.TargetName="ContentPresenter"
+                                       Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                       To="0.95"
+                                       Duration="0:0:0.1"/>
+                                                                    <DoubleAnimation Storyboard.TargetName="ContentPresenter"
+                                       Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                       To="0.95"
+                                       Duration="0:0:0.1"/>
+                                                                </Storyboard>
                                                                 <VisualState.Setters>
-                                                                    <Setter Target="HoverBorder.Opacity" 
-                                                                            Value="0.8"/>
+                                                                    <Setter Target="HoverBorder.Opacity" Value="0.8"/>
                                                                 </VisualState.Setters>
                                                             </VisualState>
                                                         </VisualStateGroup>
                                                     </VisualStateManager.VisualStateGroups>
 
-                                                    <Grid>
+                                                    <Grid x:Name="ContentPresenter"
+              RenderTransformOrigin="0.5,0.5">
+                                                        <Grid.RenderTransform>
+                                                            <ScaleTransform/>
+                                                        </Grid.RenderTransform>
+
                                                         <Image Source="{Binding Thumbnail, Mode=OneWay}" 
-                                                               Stretch="UniformToFill"/>
+                   Stretch="UniformToFill"/>
                                                         <Border x:Name="HoverBorder" 
-                                                                Background="{ThemeResource SystemBaseLowColor}" 
-                                                                Opacity="0"/>
-                                                        <Border x:Name="SelectionBorder" 
-                                                                BorderBrush="{ThemeResource SystemAccentColor}" 
-                                                                BorderThickness="3" 
-                                                                Visibility="Collapsed"/>
+                    Background="{ThemeResource SystemBaseLowColor}" 
+                    Opacity="0"/>
+                                                        <CheckBox x:Name="SelectionCheckBox"
+                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                      Style="{StaticResource PhotoSelectionCheckBoxStyle}"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Top"
+                      Margin="8"/>
                                                     </Grid>
                                                 </Grid>
                                             </ControlTemplate>

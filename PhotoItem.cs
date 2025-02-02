@@ -224,14 +224,4 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
         storage = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
-
-    public void UpdateVisualState(FrameworkElement element)
-    {
-        if (element == null) return;
-
-        var button = element.FindName("ImageButton") as Button;
-        if (button == null) return;
-
-        VisualStateManager.GoToState(button, IsSelected ? "Selected" : "Unselected", true);
-    }
 }

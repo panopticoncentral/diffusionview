@@ -41,7 +41,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             if (_selectedItem != null)
             {
                 _selectedItem.IsSelected = false;
-                _selectedItem.UpdateVisualState(GetButtonForItem(_selectedItem));
             }
 
             _selectedItem = value;
@@ -56,7 +55,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
             _selectedItem.IsSelected = true;
             var button = GetButtonForItem(_selectedItem);
-            _selectedItem.UpdateVisualState(button);
             ScrollIntoView(button);
         }
     }
