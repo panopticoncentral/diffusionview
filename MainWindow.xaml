@@ -226,16 +226,24 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid Grid.Column="0">
-                        <Button VerticalAlignment="Top"
-                                HorizontalAlignment="Left"
-                                Margin="8"
-                                Click="BackToGridButton_Click">
-                            <StackPanel Orientation="Horizontal" 
-                                        Spacing="8">
-                                <FontIcon FontFamily="Segoe MDL2 Assets" 
-                                          Glyph="&#xE711;"/>
-                            </StackPanel>
-                        </Button>
+                        <StackPanel Orientation="Horizontal" 
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Margin="8"
+                                    Spacing="8">
+                            <Button Click="BackToGridButton_Click">
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE72B;"/>
+                            </Button>
+
+                            <ToggleButton x:Name="SelectionToggle"
+                                          IsChecked="{x:Bind FocusedItem.IsSelected, Mode=TwoWay}" 
+                                          Click="SelectionToggle_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontFamily="Segoe MDL2 Assets" 
+                                              Glyph="&#xE73E;"/>
+                                </StackPanel>
+                            </ToggleButton>
+                        </StackPanel>
 
                         <Grid>
                             <Grid.ColumnDefinitions>

@@ -91,6 +91,25 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         {
             switch (e.Key)
             {
+                case VirtualKey.Space when SinglePhotoView.Visibility == Visibility.Visible:
+                    if (FocusedItem != null)
+                    {
+                        FocusedItem.IsSelected = !FocusedItem.IsSelected;
+                        if (FocusedItem.IsSelected)
+                        {
+                            if (!SelectedItems.Contains(FocusedItem))
+                            {
+                                SelectedItems.Add(FocusedItem);
+                            }
+                        }
+                        else
+                        {
+                            SelectedItems.Remove(FocusedItem);
+                        }
+                        e.Handled = true;
+                    }
+                    break;
+
                 case VirtualKey.Control:
                     IsMultiSelectMode = true;
                     break;
@@ -146,6 +165,23 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         if (e.Key == VirtualKey.Control)
         {
             IsMultiSelectMode = false;
+        }
+    }
+
+    private void SelectionToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (FocusedItem == null) return;
+
+        if (FocusedItem.IsSelected)
+        {
+            if (!SelectedItems.Contains(FocusedItem))
+            {
+                SelectedItems.Add(FocusedItem);
+            }
+        }
+        else
+        {
+            SelectedItems.Remove(FocusedItem);
         }
     }
 
@@ -477,6 +513,8 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         {
             var bitmap = new BitmapImage(new Uri(FocusedItem.FilePath));
             SinglePhotoImage.Source = bitmap;
+
+            SelectionToggle.IsChecked = FocusedItem.IsSelected;
 
             UpdateNavigationButtonStates();
         }
