@@ -1,9 +1,6 @@
 ﻿using Microsoft.UI.Xaml.Media.Imaging;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml;
 using System.Collections.Generic;
 using DiffusionView.Database;
 using System.Linq;

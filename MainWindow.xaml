@@ -10,17 +10,21 @@
     mc:Ignorable="d">
 
     <Grid KeyDown="MainGrid_KeyDown" 
+          KeyUp="MainGrid_KeyUp"
           XYFocusKeyboardNavigation="Enabled"
           TabFocusNavigation="Cycle"
           IsTabStop="True"
           UseSystemFocusVisuals="False">
+
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- Title bar -->
         <Grid Height="48" 
               Grid.Row="0">
+
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="0"/>
                 <ColumnDefinition Width="Auto"/>
@@ -53,6 +57,7 @@
                             MaxWidth="600"/>
         </Grid>
 
+        <!-- Navigation view -->
         <NavigationView x:Name="NavView" 
                         Grid.Row="1" 
                         IsSettingsVisible="False" 
@@ -89,30 +94,27 @@
                                 <ControlTemplate TargetType="CheckBox">
                                     <Grid x:Name="RootGrid" Background="Transparent">
                                         <Grid x:Name="CheckBoxBackground"
-                          Background="{ThemeResource SystemAltHighColor}"
-                          CornerRadius="4"
-                          Width="20" 
-                          Height="20">
+                                              Background="{ThemeResource SystemAltHighColor}"
+                                              CornerRadius="4"
+                                              Width="20" 
+                                              Height="20">
                                             <FontIcon x:Name="CheckGlyph"
-                                  FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                  Glyph="&#xE73E;"
-                                  FontSize="16"
-                                  Foreground="{ThemeResource SystemBaseHighColor}"
-                                  Opacity="0"/>
+                                                      FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                                      Glyph="&#xE73E;"
+                                                      FontSize="16"
+                                                      Foreground="{ThemeResource SystemBaseHighColor}"
+                                                      Opacity="0"/>
                                         </Grid>
 
                                         <VisualStateManager.VisualStateGroups>
                                             <VisualStateGroup x:Name="CombinedStates">
                                                 <VisualState x:Name="UncheckedNormal"/>
-
                                                 <VisualState x:Name="UncheckedPointerOver"/>
-
                                                 <VisualState x:Name="CheckedNormal">
                                                     <VisualState.Setters>
                                                         <Setter Target="CheckGlyph.Opacity" Value="1"/>
                                                     </VisualState.Setters>
                                                 </VisualState>
-
                                                 <VisualState x:Name="CheckedPointerOver">
                                                     <VisualState.Setters>
                                                         <Setter Target="CheckGlyph.Opacity" Value="1"/>
@@ -133,17 +135,17 @@
                     <ItemsRepeater ItemsSource="{x:Bind Photos}">
                         <ItemsRepeater.Layout>
                             <local:PhotoGalleryLayout DesiredHeight="400" 
-                                                          Spacing="4"/>
+                                                      Spacing="4"/>
                         </ItemsRepeater.Layout>
 
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="local:PhotoItem">
                                 <Button x:Name="ImageButton" 
-                                            Background="Transparent" 
-                                            BorderThickness="0" 
-                                            Padding="0" 
-                                            Click="PhotoItem_Click" 
-                                            DoubleTapped="PhotoItem_DoubleTapped">
+                                        Background="Transparent" 
+                                        BorderThickness="0" 
+                                        Padding="0" 
+                                        Click="PhotoItem_Click" 
+                                        DoubleTapped="PhotoItem_DoubleTapped">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Grid Margin="4">
@@ -152,55 +154,57 @@
                                                         <VisualState x:Name="Normal">
                                                             <Storyboard>
                                                                 <DoubleAnimation Storyboard.TargetName="ContentPresenter"
-                                       Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                                       To="1"
-                                       Duration="0:0:0.1"/>
+                                                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                                                 To="1"
+                                                                                 Duration="0:0:0.1"/>
                                                                 <DoubleAnimation Storyboard.TargetName="ContentPresenter"
-                                       Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                                       To="1"
-                                       Duration="0:0:0.1"/>
+                                                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                                                 To="1"
+                                                                                 Duration="0:0:0.1"/>
                                                             </Storyboard>
                                                         </VisualState>
                                                         <VisualState x:Name="PointerOver">
                                                             <VisualState.Setters>
-                                                                <Setter Target="HoverBorder.Opacity" Value="1"/>
+                                                                <Setter Target="HoverBorder.Opacity" 
+                                                                        Value="1"/>
                                                             </VisualState.Setters>
                                                         </VisualState>
                                                         <VisualState x:Name="Pressed">
                                                             <Storyboard>
                                                                 <DoubleAnimation Storyboard.TargetName="ContentPresenter"
-                                       Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                                       To="0.95"
-                                       Duration="0:0:0.1"/>
+                                                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                                                 To="0.95"
+                                                                                 Duration="0:0:0.1"/>
                                                                 <DoubleAnimation Storyboard.TargetName="ContentPresenter"
-                                       Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                                       To="0.95"
-                                       Duration="0:0:0.1"/>
+                                                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                                                 To="0.95"
+                                                                                 Duration="0:0:0.1"/>
                                                             </Storyboard>
                                                             <VisualState.Setters>
-                                                                <Setter Target="HoverBorder.Opacity" Value="0.8"/>
+                                                                <Setter Target="HoverBorder.Opacity" 
+                                                                        Value="0.8"/>
                                                             </VisualState.Setters>
                                                         </VisualState>
                                                     </VisualStateGroup>
                                                 </VisualStateManager.VisualStateGroups>
 
                                                 <Grid x:Name="ContentPresenter"
-              RenderTransformOrigin="0.5,0.5">
+                                                      RenderTransformOrigin="0.5,0.5">
                                                     <Grid.RenderTransform>
                                                         <ScaleTransform/>
                                                     </Grid.RenderTransform>
 
                                                     <Image Source="{Binding Thumbnail, Mode=OneWay}" 
-                   Stretch="UniformToFill"/>
+                                                           Stretch="UniformToFill"/>
                                                     <Border x:Name="HoverBorder" 
-                    Background="{ThemeResource SystemBaseLowColor}" 
-                    Opacity="0"/>
+                                                            Background="{ThemeResource SystemBaseLowColor}" 
+                                                            Opacity="0"/>
                                                     <CheckBox x:Name="SelectionCheckBox"
-                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                      Style="{StaticResource PhotoSelectionCheckBoxStyle}"
-                      HorizontalAlignment="Right"
-                      VerticalAlignment="Top"
-                      Margin="8"/>
+                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                              Style="{StaticResource PhotoSelectionCheckBoxStyle}"
+                                                              HorizontalAlignment="Right"
+                                                              VerticalAlignment="Top"
+                                                              Margin="8"/>
                                                 </Grid>
                                             </Grid>
                                         </ControlTemplate>
@@ -215,21 +219,21 @@
                       Visibility="Collapsed">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" 
-                                      MinWidth="400"/>
+                                          MinWidth="400"/>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="320" 
-                                      MinWidth="200"/>
+                                          MinWidth="200"/>
                     </Grid.ColumnDefinitions>
 
                     <Grid Grid.Column="0">
                         <Button VerticalAlignment="Top"
-                                    HorizontalAlignment="Left"
-                                    Margin="8"
-                                    Click="BackToGridButton_Click">
+                                HorizontalAlignment="Left"
+                                Margin="8"
+                                Click="BackToGridButton_Click">
                             <StackPanel Orientation="Horizontal" 
-                                            Spacing="8">
+                                        Spacing="8">
                                 <FontIcon FontFamily="Segoe MDL2 Assets" 
-                                              Glyph="&#xE72B;"/>
+                                          Glyph="&#xE711;"/>
                             </StackPanel>
                         </Button>
 
@@ -241,84 +245,89 @@
                             </Grid.ColumnDefinitions>
 
                             <Button x:Name="PreviousButton"
-                                        Grid.Column="0"
-                                        Width="48"
-                                        Background="{ThemeResource SystemControlBackgroundAltHighBrush}"
-                                        Opacity="0.7"
-                                        VerticalAlignment="Center"
-                                        Margin="8,0,0,0"
-                                        Click="PreviousButton_Click">
+                                    Grid.Column="0"
+                                    Width="48"
+                                    Background="{ThemeResource SystemControlBackgroundAltHighBrush}"
+                                    Opacity="0.7"
+                                    VerticalAlignment="Center"
+                                    Margin="8,0,0,0"
+                                    Click="PreviousButton_Click">
                                 <FontIcon FontFamily="Segoe MDL2 Assets" 
-                                              Glyph="&#xE76B;"
-                                              FontSize="24"/>
+                                          Glyph="&#xE76B;"
+                                          FontSize="24"/>
                             </Button>
 
                             <Image x:Name="SinglePhotoImage"
-                                       Grid.Column="1"
-                                       Margin="48"
-                                       Stretch="Uniform"/>
+                                   Grid.Column="1"
+                                   Margin="48"
+                                   Stretch="Uniform"/>
 
                             <Button x:Name="NextButton"
-                                        Grid.Column="2"
-                                        Width="48"
-                                        Background="{ThemeResource SystemControlBackgroundAltHighBrush}"
-                                        Opacity="0.7"
-                                        VerticalAlignment="Center"
-                                        Margin="0,0,8,0"
-                                        Click="NextButton_Click">
+                                    Grid.Column="2"
+                                    Width="48"
+                                    Background="{ThemeResource SystemControlBackgroundAltHighBrush}"
+                                    Opacity="0.7"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0"
+                                    Click="NextButton_Click">
                                 <FontIcon FontFamily="Segoe MDL2 Assets" 
-                                              Glyph="&#xE76C;"
-                                              FontSize="24"/>
+                                          Glyph="&#xE76C;"
+                                          FontSize="24"/>
                             </Button>
                         </Grid>
                     </Grid>
 
                     <controls:GridSplitter Grid.Column="1"
-                                       Background="{ThemeResource SystemControlForegroundChromeMediumBrush}"
-                                       Opacity="0.5"
-                                       ResizeBehavior="PreviousAndNext"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Stretch"/>
+                                           Background="{ThemeResource SystemControlForegroundChromeMediumBrush}"
+                                           Opacity="0.5"
+                                           ResizeBehavior="PreviousAndNext"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Stretch"/>
 
                     <Grid Grid.Column="2" 
-                      Margin="12">
+                          Margin="12">
+
                         <Grid.Resources>
                             <Style x:Key="SelectableTextStyle" 
-                               TargetType="TextBox">
+                                   TargetType="TextBox">
                                 <Setter Property="IsReadOnly" 
-                                    Value="True"/>
+                                        Value="True"/>
                                 <Setter Property="BorderThickness" 
-                                    Value="0"/>
+                                        Value="0"/>
                                 <Setter Property="Background" 
-                                    Value="Transparent"/>
+                                        Value="Transparent"/>
                                 <Setter Property="TextWrapping" 
-                                    Value="Wrap"/>
+                                        Value="Wrap"/>
                                 <Setter Property="Padding" 
-                                    Value="0"/>
+                                        Value="0"/>
                                 <Setter Property="MinHeight" 
-                                    Value="0"/>
+                                        Value="0"/>
                             </Style>
                         </Grid.Resources>
+
                         <ScrollViewer>
                             <StackPanel Spacing="8" 
-                                    Margin="0,0,8,12"
-                                    HorizontalAlignment="Stretch">
+                                        Margin="0,0,8,12"
+                                        HorizontalAlignment="Stretch">
 
-                                <Expander x:Name="FileInfoExpander" 
-                                      IsExpanded="True"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
+                                <Expander IsExpanded="True"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch">
+
                                     <Expander.Header>
                                         <TextBlock Text="File Information" 
-                                               Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                                   Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     </Expander.Header>
+
                                     <Grid ColumnSpacing="12" 
-                                      RowSpacing="8" 
-                                      Margin="0,8,0,0">
+                                          RowSpacing="8"
+                                          Margin="0,8,0,0">
+
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
+
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
@@ -328,89 +337,93 @@
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Grid.Row="0" 
-                                               Grid.Column="0" 
-                                               Text="File name:" />
+                                                   Grid.Column="0" 
+                                                   Text="File name:" />
                                         <TextBox Grid.Row="0" 
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.FileName, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.FileName, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="1" 
-                                               Grid.Column="0" 
-                                               Text="Path:" />
+                                                   Grid.Column="0" 
+                                                   Text="Path:" />
                                         <TextBox Grid.Row="1"
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.FilePath, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.FilePath, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="2"
-                                               Grid.Column="0" 
-                                               Text="Last modified:" />
+                                                   Grid.Column="0" 
+                                                   Text="Last modified:" />
                                         <TextBox Grid.Row="2" 
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.LastModified, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.LastModified, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="3" 
-                                               Grid.Column="0"
-                                               Text="Size:" />
+                                                   Grid.Column="0"
+                                                   Text="Size:" />
                                         <TextBox Grid.Row="3" 
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.FileSize, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.FileSize, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="4" 
-                                               Grid.Column="0" 
-                                               Text="Resolution:" />
+                                                   Grid.Column="0" 
+                                                   Text="Resolution:" />
                                         <TextBox Grid.Row="4" 
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.Resolution, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.Resolution, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
                                     </Grid>
                                 </Expander>
 
-                                <Expander x:Name="PromptsExpander" 
-                                      IsExpanded="True"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
+                                <Expander IsExpanded="True"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch">
+
                                     <Expander.Header>
                                         <TextBlock Text="Prompts" 
-                                               Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                                   Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     </Expander.Header>
+
                                     <StackPanel Spacing="8"
-                                            Margin="0,8,0,0">
+                                                Margin="0,8,0,0">
                                         <TextBlock Text="Positive prompt:" 
-                                               Style="{ThemeResource BodyTextBlockStyle}" />
+                                                   Style="{ThemeResource BodyTextBlockStyle}" />
                                         <TextBox Text="{x:Bind FocusedItem.Prompt, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}"
-                                             MinHeight="60"
-                                             AcceptsReturn="True" />
+                                                 Style="{StaticResource SelectableTextStyle}"
+                                                 MinHeight="60"
+                                                 AcceptsReturn="True" />
 
                                         <TextBlock Text="Negative prompt:" 
-                                               Style="{ThemeResource BodyTextBlockStyle}"
-                                               Margin="0,8,0,0" />
+                                                   Style="{ThemeResource BodyTextBlockStyle}"
+                                                   Margin="0,8,0,0" />
                                         <TextBox Text="{x:Bind FocusedItem.NegativePrompt, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}"
-                                             MinHeight="60"
-                                             AcceptsReturn="True" />
+                                                 Style="{StaticResource SelectableTextStyle}"
+                                                 MinHeight="60"
+                                                 AcceptsReturn="True" />
                                     </StackPanel>
                                 </Expander>
 
-                                <Expander x:Name="ParametersExpander" 
-                                      IsExpanded="True"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
+                                <Expander IsExpanded="True"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch">
+
                                     <Expander.Header>
                                         <TextBlock Text="Generation Parameters" 
-                                               Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                                   Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     </Expander.Header>
+
                                     <Grid ColumnSpacing="12" 
-                                      RowSpacing="8"
-                                      Margin="0,8,0,0">
+                                          RowSpacing="8"
+                                          Margin="0,8,0,0">
+
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
+                                        
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
@@ -423,143 +436,150 @@
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Grid.Row="0" 
-                                               Grid.Column="0" 
-                                               Text="Model:" />
+                                                   Grid.Column="0" 
+                                                   Text="Model:" />
                                         <TextBox Grid.Row="0" 
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.Model, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.Model, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="1"
-                                               Grid.Column="0"
-                                               Text="Model hash:" />
+                                                   Grid.Column="0"
+                                                   Text="Model hash:" />
                                         <TextBox Grid.Row="1" 
-                                             Grid.Column="1"
-                                             Text="{x:Bind FocusedItem.ModelHash, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1"
+                                                 Text="{x:Bind FocusedItem.ModelHash, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="2" 
-                                               Grid.Column="0" 
-                                               Text="Generated Resolution:" />
+                                                   Grid.Column="0" 
+                                                   Text="Generated Resolution:" />
                                         <TextBox Grid.Row="2" 
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.GeneratedResolution, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.GeneratedResolution, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="3" 
-                                               Grid.Column="0" 
-                                               Text="Steps:" />
+                                                   Grid.Column="0" 
+                                                   Text="Steps:" />
                                         <TextBox Grid.Row="3" 
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.Steps, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.Steps, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="4"
-                                               Grid.Column="0" 
-                                               Text="CFG scale:" />
+                                                   Grid.Column="0" 
+                                                   Text="CFG scale:" />
                                         <TextBox Grid.Row="4" 
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.CfgScale, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.CfgScale, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="5"
-                                               Grid.Column="0"
-                                               Text="Sampler:" />
+                                                   Grid.Column="0"
+                                                   Text="Sampler:" />
                                         <TextBox Grid.Row="5" 
-                                             Grid.Column="1"
-                                             Text="{x:Bind FocusedItem.Sampler, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1"
+                                                 Text="{x:Bind FocusedItem.Sampler, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="6" 
-                                               Grid.Column="0"
-                                               Text="Seed:" />
+                                                   Grid.Column="0"
+                                                   Text="Seed:" />
                                         <TextBox Grid.Row="6"
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.Seed, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.Seed, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
 
                                         <TextBlock Grid.Row="7"
-                                               Grid.Column="0" 
-                                               Text="Version:" />
+                                                   Grid.Column="0" 
+                                                   Text="Version:" />
                                         <TextBox Grid.Row="7" 
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.Version, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.Version, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
                                     </Grid>
                                 </Expander>
 
-                                <Expander x:Name="ExtraParametersExpander" 
-                                      IsExpanded="True"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
+                                <Expander IsExpanded="True"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch">
+
                                     <Expander.Header>
                                         <TextBlock Text="Additional Parameters" 
-                                               Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                                   Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     </Expander.Header>
+                                    
                                     <ItemsRepeater ItemsSource="{x:Bind FocusedItem.ParametersList, Mode=OneWay}"
-                                               Margin="0,8,0,0">
+                                                   Margin="0,8,0,0">
                                         <ItemsRepeater.ItemTemplate>
                                             <DataTemplate x:DataType="local:KeyValuePair">
-                                                <Grid ColumnSpacing="12" Margin="0,4">
+                                                <Grid ColumnSpacing="12" 
+                                                      Margin="0,4">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{x:Bind Key}" />
+    
+                                                    <TextBlock Grid.Column="0" 
+                                                               Text="{x:Bind Key}" />
                                                     <TextBox Grid.Column="1"
-                                                         Text="{x:Bind Value}"
-                                                         Style="{StaticResource SelectableTextStyle}" />
+                                                             Text="{x:Bind Value}"
+                                                             Style="{StaticResource SelectableTextStyle}" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsRepeater.ItemTemplate>
                                     </ItemsRepeater>
                                 </Expander>
 
-                                <Expander x:Name="RawExpander" 
-                                      IsExpanded="True"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
+                                <Expander IsExpanded="True"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch">
+
                                     <Expander.Header>
                                         <TextBlock Text="Raw" 
-                                               Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                                   Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     </Expander.Header>
+                                    
                                     <Grid ColumnSpacing="12" 
-                                      RowSpacing="8"
-                                      Margin="0,8,0,0">
+                                          RowSpacing="8"
+                                          Margin="0,8,0,0">
+                                        
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
+                                    
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Grid.Row="0" 
-                                               Grid.Column="0" 
-                                               Text="Raw:" />
+                                                   Grid.Column="0" 
+                                                   Text="Raw:" />
                                         <TextBox Grid.Row="0" 
-                                             Grid.Column="1" 
-                                             Text="{x:Bind FocusedItem.Raw, Mode=OneWay}"
-                                             Style="{StaticResource SelectableTextStyle}" />
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.Raw, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
                                     </Grid>
                                 </Expander>
 
                                 <StackPanel Orientation="Horizontal" 
-                                        Spacing="8" 
-                                        Margin="0,8,0,0">
+                                            Spacing="8" 
+                                            Margin="0,8,0,0">
                                     <Button Click="OpenButton_Click">
                                         <StackPanel Orientation="Horizontal" 
-                                                Spacing="8">
+                                                    Spacing="8">
                                             <FontIcon FontFamily="Segoe MDL2 Assets" 
-                                                  Glyph="&#xE8A7;"/>
+                                                      Glyph="&#xE8A7;"/>
                                             <TextBlock Text="Open" />
                                         </StackPanel>
                                     </Button>
                                     <Button Click="DeleteButton_Click">
                                         <StackPanel Orientation="Horizontal" 
-                                                Spacing="8">
+                                                    Spacing="8">
                                             <FontIcon FontFamily="Segoe MDL2 Assets"
-                                                  Glyph="&#xE74D;"/>
+                                                      Glyph="&#xE74D;"/>
                                             <TextBlock Text="Delete" />
                                         </StackPanel>
                                     </Button>
