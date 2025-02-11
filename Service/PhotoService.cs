@@ -231,10 +231,8 @@ public sealed partial class PhotoService : IDisposable
                 case FileChangeType.Created:
                 case FileChangeType.Modified:
                 {
-                    // If it's a directory, there's nothing to do at this point.
                     if (Directory.Exists(path)) return;
 
-                    // If it's not under a directory we're watching, ignore it.
                     var parentFolder = db.Folders.FirstOrDefault(f => path.StartsWith(f.Path));
                     if (parentFolder == null) return;
 
@@ -351,8 +349,7 @@ public sealed partial class PhotoService : IDisposable
 
         var watcher = new FileSystemWatcher(path)
         {
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-            Filter = "*.png",
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.DirectoryName,
             IncludeSubdirectories = true,
             EnableRaisingEvents = true
         };
@@ -567,7 +564,7 @@ public sealed partial class PhotoService : IDisposable
             var value = new StringBuilder();
             while (_index < line.Length && line[_index] != ',')
             {
-                if (line[_index] == '"')
+                if (line[_index] == '"' && line.IndexOf('"', _index + 1) != -1)
                 {
                     value.Append(line[_index++]);
                     while (line[_index] != '"')
