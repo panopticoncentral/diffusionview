@@ -85,6 +85,18 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         _ = _photoService.InitializeAsync();
     }
 
+    private static void InsertInCollectionInOrder(ObservableCollection<NavigationViewItem> items, NavigationViewItem item)
+    {
+        int index;
+        for (index = 0; index < items.Count; index++)
+        {
+            var collectionItem = items[index];
+            if (string.Compare((string)collectionItem.Content, (string)item.Content, StringComparison.InvariantCultureIgnoreCase) > 0) break;
+        }
+
+        items.Insert(index, item);
+    }
+
     private async void MainGrid_KeyDown(object sender, KeyRoutedEventArgs e)
     {
         try
@@ -311,7 +323,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             try
             {
                 var children = new ObservableCollection<NavigationViewItem>();
-                var rootItem = new NavigationViewItem
+                var item = new NavigationViewItem
                 {
                     Content = e.Name,
                     Icon = new SymbolIcon(Symbol.Folder),
@@ -319,7 +331,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                     Tag = e.Path
                 };
 
-                Folders.Add(rootItem);
+                InsertInCollectionInOrder(Folders, item);
 
                 var folder = await StorageFolder.GetFolderFromPathAsync(e.Path);
                 var subFolders = await folder.GetFoldersAsync();
@@ -430,34 +442,21 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 versions = [];
                 modelItem.MenuItemsSource = versions;
 
-                int index;
-                for (index = 0; index < Models.Count; index++)
-                {
-                    var item = Models[index];
-                    if (string.Compare((string)item.Content, e.Name, StringComparison.InvariantCultureIgnoreCase) > 0) break;
-                }
-
-                Models.Insert(index, modelItem);
+                InsertInCollectionInOrder(Models, modelItem);
             }
             else
             {
                 versions = (ObservableCollection<NavigationViewItem>)modelItem.MenuItemsSource;
             }
 
-            int versionIndex;
-            for (versionIndex = 0; versionIndex < versions.Count; versionIndex++)
+            var version = new NavigationViewItem
             {
-                var version = versions[versionIndex];
-                if (string.Compare((string)version.Content, e.Version, StringComparison.InvariantCultureIgnoreCase) > 0) break;
-            }
+                Content = e.Version,
+                Icon = new SymbolIcon(Symbol.Contact),
+                Tag = e.Hash
+            };
 
-            versions.Insert(versionIndex,
-                new NavigationViewItem
-                {
-                    Content = e.Version,
-                    Icon = new SymbolIcon(Symbol.Contact),
-                    Tag = e.Hash
-                });
+            InsertInCollectionInOrder(versions, version);
         });
     }
 
@@ -641,7 +640,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                     Tag = folder.Path
                 };
 
-                children.Add(subItem);
+                InsertInCollectionInOrder(children, subItem);
 
                 var subFolders = await folder.GetFoldersAsync();
                 if (subFolders.Count > 0)
