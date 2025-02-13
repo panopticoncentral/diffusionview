@@ -39,6 +39,7 @@ public sealed partial class PhotoService : IDisposable
     public event EventHandler<PhotoChangedEventArgs> PhotoRemoved;
     public event EventHandler<ModelChangedEventArgs> ModelAdded;
     public event EventHandler<ModelChangedEventArgs> ModelRemoved;
+    public event EventHandler<ScanProgressEventArgs> ScanProgress;
 
     public PhotoService()
     {
@@ -383,6 +384,8 @@ public sealed partial class PhotoService : IDisposable
                 var query = folder.CreateFileQueryWithOptions(queryOptions);
 
                 var files = (await query.GetFilesAsync()).Select(f => f.Path).ToList();
+                var processedFiles = 0;
+
                 foreach (var file in files.TakeWhile(file => !cancellationToken.IsCancellationRequested))
                 {
                     try
@@ -397,6 +400,9 @@ public sealed partial class PhotoService : IDisposable
                         {
                             await HandleFileChangeAsync(file, FileChangeType.Created);
                         }
+
+                        processedFiles++;
+                        ScanProgress?.Invoke(this, new ScanProgressEventArgs(path, processedFiles, files.Count));
                     }
                     catch (Exception)
                     {

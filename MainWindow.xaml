@@ -9,12 +9,22 @@
     xmlns:local="using:DiffusionView"
     mc:Ignorable="d">
 
-    <Grid KeyDown="MainGrid_KeyDown" 
+    <Grid x:Name="MainGrid"
+          KeyDown="MainGrid_KeyDown" 
           KeyUp="MainGrid_KeyUp"
           XYFocusKeyboardNavigation="Enabled"
           TabFocusNavigation="Cycle"
           IsTabStop="True"
           UseSystemFocusVisuals="False">
+
+        <Grid.Resources>
+            <Style x:Key="ScanProgressBarStyle" TargetType="ProgressBar">
+                <Setter Property="Background" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource SystemAccentColor}"/>
+                <Setter Property="Height" Value="2"/>
+                <Setter Property="IsIndeterminate" Value="False"/>
+            </Style>
+        </Grid.Resources>
 
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

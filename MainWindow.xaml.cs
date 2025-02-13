@@ -82,16 +82,30 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         _photoService.PhotoRemoved += PhotoService_PhotoRemoved;
         _photoService.ModelAdded += PhotoService_ModelAdded;
         _photoService.ModelRemoved += PhotoService_ModelRemoved;
+        _photoService.ScanProgress += PhotoService_ScanProgress;
         _ = _photoService.InitializeAsync();
+    }
+
+    private static string GetNavigationItemText(NavigationViewItem item)
+    {
+        return item.Content switch
+        {
+            string text => text,
+            StackPanel panel => (panel.Children[0] as TextBlock)?.Text ?? string.Empty,
+            _ => string.Empty
+        };
     }
 
     private static void InsertInCollectionInOrder(ObservableCollection<NavigationViewItem> items, NavigationViewItem item)
     {
+        var newItemText = GetNavigationItemText(item);
+
         int index;
         for (index = 0; index < items.Count; index++)
         {
-            var collectionItem = items[index];
-            if (string.Compare((string)collectionItem.Content, (string)item.Content, StringComparison.InvariantCultureIgnoreCase) > 0) break;
+            var collectionItemText = GetNavigationItemText(items[index]);
+            if (string.Compare(collectionItemText, newItemText, StringComparison.InvariantCultureIgnoreCase) > 0)
+                break;
         }
 
         items.Insert(index, item);
@@ -322,10 +336,29 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         {
             try
             {
+                var stackPanel = new StackPanel
+                {
+                    Orientation = Orientation.Vertical,
+                    Spacing = 4
+                };
+
+                var textBlock = new TextBlock { Text = e.Path };
+                stackPanel.Children.Add(textBlock);
+
+                var progressBar = new ProgressBar
+                {
+                    Maximum = 100,
+                    Value = 0,
+                    Height = 2,
+                    Margin = new Thickness(0, 0, 12, 0),
+                    Style = MainGrid.Resources["ScanProgressBarStyle"] as Style
+                };
+                stackPanel.Children.Add(progressBar);
+
                 var children = new ObservableCollection<NavigationViewItem>();
                 var item = new NavigationViewItem
                 {
-                    Content = e.Path,
+                    Content = stackPanel,
                     Icon = new SymbolIcon(Symbol.Folder),
                     MenuItemsSource = children,
                     Tag = e.Path
@@ -498,6 +531,26 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             Models.Remove(modelItem);
         });
     }
+
+    private void PhotoService_ScanProgress(object sender, ScanProgressEventArgs e)
+    {
+        if (DispatcherQueue == null) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var folderItem = Folders.FirstOrDefault(item => (string)item.Tag == e.Path);
+            if (folderItem?.Content is not StackPanel stackPanel) return;
+
+            var progressBar = stackPanel.Children.OfType<ProgressBar>().FirstOrDefault();
+            if (progressBar == null) return;
+
+            progressBar.Value = e.Progress * 100;
+            if (Math.Abs(e.Progress - 1.0) < double.Epsilon)
+            {
+                progressBar.Visibility = Visibility.Collapsed;
+            }
+        });
+    }
+
 
     private void PhotoItem_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
