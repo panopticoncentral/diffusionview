@@ -325,7 +325,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 var children = new ObservableCollection<NavigationViewItem>();
                 var item = new NavigationViewItem
                 {
-                    Content = e.Name,
+                    Content = e.Path,
                     Icon = new SymbolIcon(Symbol.Folder),
                     MenuItemsSource = children,
                     Tag = e.Path

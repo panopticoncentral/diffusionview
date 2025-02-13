@@ -308,7 +308,7 @@ public sealed partial class PhotoService : IDisposable
                         if (folder == null) return;
 
                         db.Folders.Remove(folder);
-                        FolderRemoved?.Invoke(this, new FolderChangedEventArgs(folder.Name, folder.Path));
+                        FolderRemoved?.Invoke(this, new FolderChangedEventArgs(folder.Path));
                     }
                     else
                     {
@@ -436,7 +436,7 @@ public sealed partial class PhotoService : IDisposable
                     continue;
                 }
 
-                FolderAdded?.Invoke(this, new FolderChangedEventArgs(folder.Name, folder.Path));
+                FolderAdded?.Invoke(this, new FolderChangedEventArgs(folder.Path));
             }
 
             var models = await db.Models.ToListAsync();
@@ -475,7 +475,6 @@ public sealed partial class PhotoService : IDisposable
 
             var newFolder = new Folder
             {
-                Name = folder.Name,
                 Path = folderPath
             };
 
@@ -483,7 +482,7 @@ public sealed partial class PhotoService : IDisposable
             await db.SaveChangesAsync();
         }
 
-        FolderAdded?.Invoke(this, new FolderChangedEventArgs(folder.Name, folderPath));
+        FolderAdded?.Invoke(this, new FolderChangedEventArgs(folderPath));
 
         StartWatcher(folderPath);
         QueueFolderScan(folderPath);
