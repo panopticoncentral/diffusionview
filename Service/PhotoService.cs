@@ -20,6 +20,8 @@ using Windows.Graphics.Imaging;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Png;
 using Directory = System.IO.Directory;
+using Microsoft.UI.Xaml.Controls;
+using System.Collections.ObjectModel;
 
 namespace DiffusionView.Service;
 
@@ -426,6 +428,16 @@ public sealed partial class PhotoService : IDisposable
      * Initialization
      */
 
+    private async Task FireFolderEventAsync(StorageFolder folder)
+    {
+        FolderAdded?.Invoke(this, new FolderChangedEventArgs(folder.Path));
+        var subFolders = await folder.GetFoldersAsync();
+        foreach (var subFolder in subFolders)
+        {
+            await FireFolderEventAsync(subFolder);
+        }
+    }
+
     public async Task InitializeAsync()
     {
         List<Folder> folders;
@@ -442,7 +454,7 @@ public sealed partial class PhotoService : IDisposable
                     continue;
                 }
 
-                FolderAdded?.Invoke(this, new FolderChangedEventArgs(folder.Path));
+                await FireFolderEventAsync(await StorageFolder.GetFolderFromPathAsync(folder.Path));
             }
 
             var models = await db.Models.ToListAsync();

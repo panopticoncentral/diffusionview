@@ -336,46 +336,70 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         {
             try
             {
-                var stackPanel = new StackPanel
-                {
-                    Orientation = Orientation.Vertical,
-                    Spacing = 4
-                };
-
-                var textBlock = new TextBlock { Text = e.Path };
-                stackPanel.Children.Add(textBlock);
-
-                var progressBar = new ProgressBar
-                {
-                    Maximum = 100,
-                    Value = 0,
-                    Height = 2,
-                    Margin = new Thickness(0, 0, 12, 0),
-                    Style = MainGrid.Resources["ScanProgressBarStyle"] as Style
-                };
-                stackPanel.Children.Add(progressBar);
-
-                var children = new ObservableCollection<NavigationViewItem>();
-                var item = new NavigationViewItem
-                {
-                    Content = stackPanel,
-                    Icon = new SymbolIcon(Symbol.Folder),
-                    MenuItemsSource = children,
-                    Tag = e.Path
-                };
-
-                InsertInCollectionInOrder(Folders, item);
-
-                var folder = await StorageFolder.GetFolderFromPathAsync(e.Path);
-                var subFolders = await folder.GetFoldersAsync();
-
-                await AddSubFolderItemsAsync(children, subFolders);
+                await AddFolderItemAsync(e.Path, Folders);
             }
             catch (Exception)
             {
                 // For now, ignore exceptions
             }
         });
+    }
+
+    private async Task AddFolderItemAsync(string path, ObservableCollection<NavigationViewItem> collection)
+    {
+        foreach (var collectionItem in collection)
+        {
+            var itemPath = collectionItem.Tag?.ToString();
+            
+            if (string.IsNullOrEmpty(itemPath) || itemPath == path) return;
+
+            if (!path.StartsWith(itemPath)) continue;
+
+            await AddFolderItemAsync(
+                path, 
+                collectionItem.MenuItemsSource as ObservableCollection<NavigationViewItem>);
+            return;
+        }
+
+        object content;
+
+        if (collection == Folders)
+        {
+            var stackPanel = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                Spacing = 4
+            };
+
+            var textBlock = new TextBlock { Text = path };
+            stackPanel.Children.Add(textBlock);
+
+            var progressBar = new ProgressBar
+            {
+                Maximum = 100,
+                Value = 0,
+                Height = 2,
+                Margin = new Thickness(0, 0, 12, 0),
+                Style = MainGrid.Resources["ScanProgressBarStyle"] as Style
+            };
+            stackPanel.Children.Add(progressBar);
+            content = stackPanel;
+        }
+        else
+        {
+            content = Path.GetFileName(path);
+        }
+
+        var children = new ObservableCollection<NavigationViewItem>();
+        var item = new NavigationViewItem
+        {
+            Content = content,
+            Icon = new SymbolIcon(Symbol.Folder),
+            MenuItemsSource = children,
+            Tag = path
+        };
+
+        InsertInCollectionInOrder(collection, item);
     }
 
     private void PhotoService_FolderRemoved(object _, FolderChangedEventArgs e)
@@ -675,36 +699,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         {
             var file = await StorageFile.GetFileFromPathAsync(item.FilePath);
             await file.DeleteAsync();
-        }
-    }
-
-    private static async Task AddSubFolderItemsAsync(ObservableCollection<NavigationViewItem> children, IReadOnlyList<StorageFolder> folders)
-    {
-        foreach (var folder in folders)
-        {
-            try
-            {
-                var subChildren = new ObservableCollection<NavigationViewItem>();
-                var subItem = new NavigationViewItem
-                {
-                    Content = folder.Name,
-                    Icon = new SymbolIcon(Symbol.Folder),
-                    MenuItemsSource = subChildren,
-                    Tag = folder.Path
-                };
-
-                InsertInCollectionInOrder(children, subItem);
-
-                var subFolders = await folder.GetFoldersAsync();
-                if (subFolders.Count > 0)
-                {
-                    await AddSubFolderItemsAsync(subChildren, subFolders);
-                }
-            }
-            catch (Exception)
-            {
-                // For now, ignore exceptions
-            }
         }
     }
 }
