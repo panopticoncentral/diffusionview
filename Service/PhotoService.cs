@@ -500,7 +500,7 @@ public sealed partial class PhotoService : IDisposable
             await db.SaveChangesAsync();
         }
 
-        FolderAdded?.Invoke(this, new FolderChangedEventArgs(folderPath));
+        await FireFolderEventAsync(await StorageFolder.GetFolderFromPathAsync(folderPath));
 
         StartWatcher(folderPath);
         QueueFolderScan(folderPath);
