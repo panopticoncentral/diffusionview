@@ -351,9 +351,9 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         {
             var itemPath = collectionItem.Tag?.ToString();
             
-            if (string.IsNullOrEmpty(itemPath) || itemPath == path) return;
+            if (string.IsNullOrEmpty(itemPath) || !path.StartsWith(itemPath)) continue;
 
-            if (!path.StartsWith(itemPath)) continue;
+            if (itemPath == path) return;
 
             await AddFolderItemAsync(
                 path, 
@@ -417,13 +417,28 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 Photos.Clear();
             }
 
-            foreach (var item in NavView.MenuItems.OfType<NavigationViewItem>())
-            {
-                if (item.Tag?.ToString() != e.Path) continue;
-                NavView.MenuItems.Remove(item);
-                break;
-            }
+            RemoveFolderItem(e.Path, Folders);
         });
+    }
+
+    private static void RemoveFolderItem(string path, ObservableCollection<NavigationViewItem> collection)
+    {
+        foreach (var collectionItem in collection)
+        {
+            var itemPath = collectionItem.Tag?.ToString();
+            if (string.IsNullOrEmpty(itemPath) || !path.StartsWith(itemPath)) continue;
+
+            if (itemPath == path)
+            {
+                collection.Remove(collectionItem);
+            }
+            else
+            {
+                RemoveFolderItem(path, collectionItem.MenuItemsSource as ObservableCollection<NavigationViewItem>);
+            }
+
+            break;
+        }
     }
 
     private void PhotoService_PhotoRemoved(object _, PhotoChangedEventArgs e)
