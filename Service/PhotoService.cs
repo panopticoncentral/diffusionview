@@ -251,8 +251,7 @@ public sealed partial class PhotoService : IDisposable
                         photo = new Photo
                         {
                             Path = path,
-                            Name = file.Name,
-                            FolderId = parentFolder.Id
+                            Name = file.Name
                         };
                         db.Photos.Add(photo);
                     }
@@ -276,19 +275,19 @@ public sealed partial class PhotoService : IDisposable
 
                     PhotoAdded?.Invoke(this, new PhotoChangedEventArgs(photo));
 
-                    var model = await db.Models.FirstOrDefaultAsync(m => m.Id == photo.ModelHash);
+                    var model = await db.Models.FirstOrDefaultAsync(m => m.Hash == photo.ModelHash);
                     if (model == null)
                     {
                         var modelInfo = await FetchModelInformationAsync(photo.ModelHash);
 
                         model = new Model
                         {
-                            Id = photo.ModelHash,
+                            Hash = photo.ModelHash,
                             Name = modelInfo?.Name ?? photo.Model,
                             Version = modelInfo?.Version ?? photo.ModelHash.ToString("X10")
                         };
                         db.Models.Add(model);
-                        ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.Id, model.Name, model.Version));
+                        ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.Hash, model.Name, model.Version));
                     }
                     break;
                 }
@@ -332,10 +331,10 @@ public sealed partial class PhotoService : IDisposable
             await db.SaveChangesAsync();
 
             var models = db.Models.ToList();
-            foreach (var model in models.Where(model => !db.Photos.Any(p => p.ModelHash == model.Id)))
+            foreach (var model in models.Where(model => !db.Photos.Any(p => p.ModelHash == model.Hash)))
             {
                 db.Models.Remove(model);
-                ModelRemoved?.Invoke(this, new ModelChangedEventArgs(model.Id, model.Name, model.Version));
+                ModelRemoved?.Invoke(this, new ModelChangedEventArgs(model.Hash, model.Name, model.Version));
             }
 
             await db.SaveChangesAsync();
@@ -461,12 +460,12 @@ public sealed partial class PhotoService : IDisposable
 
             foreach (var model in models)
             {
-                if (!await db.Photos.AnyAsync(p => p.ModelHash == model.Id))
+                if (!await db.Photos.AnyAsync(p => p.ModelHash == model.Hash))
                 {
                     db.Models.Remove(model);
                 }
 
-                ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.Id, model.Name, model.Version));
+                ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.Hash, model.Name, model.Version));
             }
 
             await db.SaveChangesAsync();

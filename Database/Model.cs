@@ -5,7 +5,7 @@ namespace DiffusionView.Database;
 public sealed class Model
 {
     [Key]
-    public long Id { get; set; }
+    public long Hash { get; set; }
 
     [MaxLength(260)]
     public required string Name { get; set; }

@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using DiffusionView.Database;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 
 namespace DiffusionView;
 
@@ -89,7 +90,7 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
         {
             if (_thumbnail == null && _thumbnailData != null)
             {
-                _thumbnail = Photo.CreateBitmapImage(_thumbnailData);
+                _thumbnail = CreateBitmapImage(_thumbnailData);
             }
             return _thumbnail;
         }
@@ -220,5 +221,18 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
         if (Equals(storage, value)) return;
         storage = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private static BitmapImage CreateBitmapImage(byte[] thumbnailData)
+    {
+        if (thumbnailData == null)
+            return null;
+
+        var image = new BitmapImage();
+        using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+        stream.WriteAsync(thumbnailData.AsBuffer()).GetResults();
+        stream.Seek(0);
+        image.SetSource(stream);
+        return image;
     }
 }
