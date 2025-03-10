@@ -20,14 +20,12 @@ using Windows.Graphics.Imaging;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Png;
 using Directory = System.IO.Directory;
-using Microsoft.UI.Xaml.Controls;
-using System.Collections.ObjectModel;
 
 namespace DiffusionView.Service;
 
 public sealed partial class PhotoService : IDisposable
 {
-    private readonly ConcurrentDictionary<string, FileSystemWatcher> _watchers = new();
+    private readonly ConcurrentDictionary<string, RootWatcher> _watchers = new();
 
     private readonly Channel<string> _scanQueue;
     private readonly Task _scanProcessingTask;
@@ -221,149 +219,166 @@ public sealed partial class PhotoService : IDisposable
         return bytes;
     }
 
-    private async Task HandleFileChangeAsync(string path, FileChangeType changeType)
+    private void DirectoryCreated(string path)
     {
-        if (_disposed) return;
+        FolderAdded?.Invoke(this, new FolderChangedEventArgs(path));
+    }
 
-        try
+    private async Task DirectoryDeletedAsync(string path)
+    {
+        FolderRemoved?.Invoke(this, new FolderChangedEventArgs(path));
+
+        // If the folder is a root, remove it from the database
+        await using var db = new PhotoDatabase();
+        var folder = await db.Folders.FirstOrDefaultAsync(f => f.Path == path);
+        if (folder != null)
         {
-            await using var db = new PhotoDatabase();
-
-            switch (changeType)
-            {
-                case FileChangeType.Created:
-                case FileChangeType.Modified:
-                {
-                    if (Directory.Exists(path)) return;
-
-                    var parentFolder = db.Folders.FirstOrDefault(f => path.StartsWith(f.Path));
-                    if (parentFolder == null) return;
-
-                    var file = await StorageFile.GetFileFromPathAsync(path);
-                    var props = await file.GetBasicPropertiesAsync();
-                    var imageProps = await file.Properties.GetImagePropertiesAsync();
-
-                    var photo = await db.Photos.FirstOrDefaultAsync(p => p.Path == path);
-                    var isNew = photo == null;
-
-                    if (isNew)
-                    {
-                        photo = new Photo
-                        {
-                            Path = path,
-                            Name = file.Name
-                        };
-                        db.Photos.Add(photo);
-                    }
-
-                    photo.DateTaken = imageProps.DateTaken.DateTime;
-                    photo.FileSize = props.Size;
-                    photo.Width = (int)imageProps.Width;
-                    photo.Height = (int)imageProps.Height;
-                    photo.LastModified = props.DateModified.DateTime;
-
-                    var thumbnail = await LoadScaledImageAsync(file, 400);
-                    photo.ThumbnailData = thumbnail;
-
-                    var stream = await file.OpenStreamForReadAsync();
-                    ExtractMetadata(stream, photo);
-
-                    if (!isNew)
-                    {
-                        PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
-                    }
-
-                    PhotoAdded?.Invoke(this, new PhotoChangedEventArgs(photo));
-
-                    var model = await db.Models.FirstOrDefaultAsync(m => m.Hash == photo.ModelHash);
-                    if (model == null)
-                    {
-                        var modelInfo = await FetchModelInformationAsync(photo.ModelHash);
-
-                        model = new Model
-                        {
-                            Hash = photo.ModelHash,
-                            Name = modelInfo?.Name ?? photo.Model,
-                            Version = modelInfo?.Version ?? photo.ModelHash.ToString("X10")
-                        };
-                        db.Models.Add(model);
-                        ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.Hash, model.Name, model.Version));
-                    }
-                    break;
-                }
-
-                case FileChangeType.Deleted:
-                    if (Directory.Exists(path))
-                    {
-                        var photos = await db.Photos
-                            .Where(p => p.Path.StartsWith(path))
-                            .ToListAsync();
-
-                        foreach (var photo in photos)
-                        {
-                            db.Photos.Remove(photo);
-                            PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
-                        }
-
-                        // If this is a root folder, remove it from the database
-                        var folder = await db.Folders.FirstOrDefaultAsync(f => f.Path == path);
-                        if (folder == null) return;
-
-                        db.Folders.Remove(folder);
-                        FolderRemoved?.Invoke(this, new FolderChangedEventArgs(folder.Path));
-                    }
-                    else
-                    {
-                        var existingPhoto = await db.Photos.FirstOrDefaultAsync(p => p.Path == path);
-                        if (existingPhoto == null) return;
-
-                        db.Photos.Remove(existingPhoto);
-
-                        PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(existingPhoto));
-                    }
-
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(changeType), changeType, null);
-            }
-
+            db.Folders.Remove(folder);
             await db.SaveChangesAsync();
+        }
 
-            var models = db.Models.ToList();
-            foreach (var model in models.Where(model => !db.Photos.Any(p => p.ModelHash == model.Hash)))
+        if (_watchers.ContainsKey(path))
+        {
+            _watchers.TryRemove(path, out var watcher);
+            watcher?.Dispose();
+        }
+    }
+
+    private async Task DirectoryRenamedAsync(string previousPath, string newPath)
+    {
+        await using var db = new PhotoDatabase();
+
+        var folder = await db.Folders.FirstOrDefaultAsync(f => f.Path == previousPath);
+        if (folder != null)
+        {
+            folder.Path = newPath;
+        }
+
+        var photos = await db.Photos.Where(p => p.Path.StartsWith(previousPath)).ToListAsync();
+        foreach (var photo in photos)
+        {
+            photo.Path = photo.Path.Replace(previousPath, newPath, StringComparison.CurrentCultureIgnoreCase);
+        }
+
+        await db.SaveChangesAsync();
+
+        FolderRemoved?.Invoke(this, new FolderChangedEventArgs(previousPath));
+        FolderAdded?.Invoke(this, new FolderChangedEventArgs(newPath));
+    }
+
+    private async Task FileCreatedAsync(string path)
+    {
+        await using var db = new PhotoDatabase();
+        var parentFolder = db.Folders.FirstOrDefault(f => path.StartsWith(f.Path));
+        if (parentFolder == null) return;
+
+        var file = await StorageFile.GetFileFromPathAsync(path);
+        var props = await file.GetBasicPropertiesAsync();
+        var imageProps = await file.Properties.GetImagePropertiesAsync();
+
+        var photo = await db.Photos.FirstOrDefaultAsync(p => p.Path == path);
+        var isNew = photo == null;
+
+        if (isNew)
+        {
+            photo = new Photo
+            {
+                Path = path,
+                Name = file.Name
+            };
+            db.Photos.Add(photo);
+        }
+
+        photo.DateTaken = imageProps.DateTaken.DateTime;
+        photo.FileSize = props.Size;
+        photo.Width = (int)imageProps.Width;
+        photo.Height = (int)imageProps.Height;
+        photo.LastModified = props.DateModified.DateTime;
+
+        var thumbnail = await LoadScaledImageAsync(file, 400);
+        photo.ThumbnailData = thumbnail;
+
+        var stream = await file.OpenStreamForReadAsync();
+        ExtractMetadata(stream, photo);
+
+        if (!isNew)
+        {
+            PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
+        }
+
+        PhotoAdded?.Invoke(this, new PhotoChangedEventArgs(photo));
+
+        var model = await db.Models.FirstOrDefaultAsync(m => m.Hash == photo.ModelHash);
+        if (model == null)
+        {
+            var modelInfo = await FetchModelInformationAsync(photo.ModelHash);
+
+            model = new Model
+            {
+                Hash = photo.ModelHash,
+                Name = modelInfo?.Name ?? photo.Model,
+                Version = modelInfo?.Version ?? photo.ModelHash.ToString("X10")
+            };
+            db.Models.Add(model);
+            ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.Hash, model.Name, model.Version));
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private async Task FileDeletedAsync(string path)
+    {
+        await using var db = new PhotoDatabase();
+        var existingPhoto = await db.Photos.FirstOrDefaultAsync(p => p.Path == path);
+        if (existingPhoto == null) return;
+
+        db.Photos.Remove(existingPhoto);
+        PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(existingPhoto));
+
+        if (!await db.Photos.AnyAsync(p => p.ModelHash == existingPhoto.ModelHash))
+        {
+            var model = await db.Models.FirstOrDefaultAsync(m => m.Hash == existingPhoto.ModelHash);
+            if (model != null)
             {
                 db.Models.Remove(model);
                 ModelRemoved?.Invoke(this, new ModelChangedEventArgs(model.Hash, model.Name, model.Version));
             }
-
-            await db.SaveChangesAsync();
         }
-        catch (Exception)
+
+        await db.SaveChangesAsync();
+    }
+
+    private async Task FileRenamedAsync(string previousPath, string newPath)
+    {
+        await using var db = new PhotoDatabase();
+
+        // If the photo is in the database, update the path
+        var photo = await db.Photos.FirstOrDefaultAsync(p => p.Path == previousPath);
+        if (photo != null)
         {
-            // Ignore error for now
+            PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
+            photo.Path = newPath;
+            await db.SaveChangesAsync();
+
+            PhotoAdded?.Invoke(this, new PhotoChangedEventArgs(photo));
         }
     }
 
-    private void StartWatcher(string path)
+    private void StartRootFolderWatcher(string path)
     {
         if (_watchers.ContainsKey(path)) return;
 
-        var watcher = new FileSystemWatcher(path)
-        {
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.DirectoryName,
-            IncludeSubdirectories = true,
-            EnableRaisingEvents = true
-        };
+        var watcher = new RootWatcher(path);
 
-        watcher.Created += async (s, e) => await HandleFileChangeAsync(e.FullPath, FileChangeType.Created);
-        watcher.Changed += async (s, e) => await HandleFileChangeAsync(e.FullPath, FileChangeType.Modified);
-        watcher.Deleted += async (s, e) => await HandleFileChangeAsync(e.FullPath, FileChangeType.Deleted);
-        watcher.Renamed += async (s, e) =>
-        {
-            await HandleFileChangeAsync(e.OldFullPath, FileChangeType.Deleted);
-            await HandleFileChangeAsync(e.FullPath, FileChangeType.Created);
-        };
+        watcher.DirectoryCreated += (_, e) => DirectoryCreated(e.Path);
+        watcher.DirectoryDeleted += async (_, e) => await DirectoryDeletedAsync(e.Path);
+        watcher.DirectoryRenamed += async (_, e) => await DirectoryRenamedAsync(e.PreviousPath, e.NewPath);
+
+        // CONSIDER: Ignoring file changes for now
+
+        watcher.FileCreated += async (_, e) => await FileCreatedAsync(e.Path);
+        watcher.FileDeleted += async (_, e) => await FileDeletedAsync(e.Path);
+        watcher.FileRenamed += async (_, e) => await FileRenamedAsync(e.PreviousPath, e.NewPath);
 
         _watchers.TryAdd(path, watcher);
     }
@@ -378,28 +393,27 @@ public sealed partial class PhotoService : IDisposable
         {
             await foreach (var path in _scanQueue.Reader.ReadAllAsync(cancellationToken))
             {
-                if (!Directory.Exists(path)) return;
+                await using var db = new PhotoDatabase();
+
+                var existingPhotos = await db.Photos
+                    .Where(p => p.Path.StartsWith(path))
+                    .Select(p => p.Path)
+                    .ToHashSetAsync(cancellationToken);
 
                 var folder = await StorageFolder.GetFolderFromPathAsync(path);
-                var queryOptions = new QueryOptions(CommonFileQuery.OrderByName, [".png"]);
-                var query = folder.CreateFileQueryWithOptions(queryOptions);
+                var query = folder.CreateFileQueryWithOptions(new QueryOptions(CommonFileQuery.OrderByName, [".png"])
+                    { FolderDepth = FolderDepth.Deep });
 
                 var files = (await query.GetFilesAsync()).Select(f => f.Path).ToList();
                 var processedFiles = 0;
 
-                foreach (var file in files.TakeWhile(file => !cancellationToken.IsCancellationRequested))
+                foreach (var file in files.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
                 {
                     try
                     {
-                        Photo photo;
-                        await using (var db = new PhotoDatabase())
+                        if (!existingPhotos.Remove(file))
                         {
-                            photo = await db.Photos.FirstOrDefaultAsync(p => p.Path == file, cancellationToken);
-                        }
-
-                        if (photo == null)
-                        {
-                            await HandleFileChangeAsync(file, FileChangeType.Created);
+                            await FileCreatedAsync(file);
                         }
 
                         processedFiles++;
@@ -410,6 +424,11 @@ public sealed partial class PhotoService : IDisposable
                         // Log error but continue processing queue
                     }
                 }
+
+                foreach (var file in existingPhotos)
+                {
+                    await FileDeletedAsync(file);
+                }
             }
         }
         catch (OperationCanceledException)
@@ -418,7 +437,7 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private void QueueFolderScan(string path)
+    private void QueueRootFolderScan(string path)
     {
         _scanQueue.Writer.TryWrite(path);
     }
@@ -427,82 +446,88 @@ public sealed partial class PhotoService : IDisposable
      * Initialization
      */
 
-    private async Task FireFolderEventAsync(StorageFolder folder)
+    private async Task AddRootFolder(string root)
     {
-        FolderAdded?.Invoke(this, new FolderChangedEventArgs(folder.Path));
-        var subFolders = await folder.GetFoldersAsync();
-        foreach (var subFolder in subFolders)
+        DirectoryCreated(root);
+
+        var storageFolder = await StorageFolder.GetFolderFromPathAsync(root);
+        var folderQuery =
+            storageFolder.CreateFolderQueryWithOptions(new QueryOptions { FolderDepth = FolderDepth.Deep });
+
+        foreach (var subFolder in await folderQuery.GetFoldersAsync())
         {
-            await FireFolderEventAsync(subFolder);
+            DirectoryCreated(subFolder.Path);
         }
+
+        StartRootFolderWatcher(root);
+        QueueRootFolderScan(root);
     }
 
     public async Task InitializeAsync()
     {
-        List<Folder> folders;
-        await using (var db = new PhotoDatabase())
+        await using var db = new PhotoDatabase();
+        await db.Database.EnsureCreatedAsync();
+
+        // CONSIDER: There may be orphaned photos in the database if the folder entry was deleted
+
+        foreach (var folder in await db.Folders.ToListAsync())
         {
-            await db.Database.EnsureCreatedAsync();
-
-            folders = await db.Folders.ToListAsync();
-            foreach (var folder in folders)
+            if (Directory.Exists(folder.Path))
             {
-                if (!Directory.Exists(folder.Path))
-                {
-                    db.Folders.Remove(folder);
-                    continue;
-                }
-
-                await FireFolderEventAsync(await StorageFolder.GetFolderFromPathAsync(folder.Path));
+                await AddRootFolder(folder.Path);
             }
-
-            var models = await db.Models.ToListAsync();
-
-            foreach (var model in models)
+            else
             {
-                if (!await db.Photos.AnyAsync(p => p.ModelHash == model.Hash))
-                {
-                    db.Models.Remove(model);
-                }
+                db.Folders.Remove(folder);
+                db.Photos.RemoveRange(db.Photos.Where(p => p.Path.StartsWith(folder.Path)));
+            }
+        }
 
+        foreach (var model in await db.Models.ToListAsync())
+        {
+            if (!await db.Photos.AnyAsync(p => p.ModelHash == model.Hash))
+            {
+                db.Models.Remove(model);
+            }
+            else
+            {
                 ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.Hash, model.Name, model.Version));
             }
-
-            await db.SaveChangesAsync();
         }
 
-        foreach (var folder in folders)
-        {
-            StartWatcher(folder.Path);
-            QueueFolderScan(folder.Path);
-        }
+        await db.SaveChangesAsync();
     }
 
     /*
      * Add folder
      */
 
-    public async Task AddFolderAsync(StorageFolder folder)
+    public async Task AddFolderAsync(StorageFolder newFolder)
     {
-        var folderPath = folder.Path;
+        await using var db = new PhotoDatabase();
+        var folders = await db.Folders.ToListAsync();
 
-        await using (var db = new PhotoDatabase())
+        foreach (var folder in folders)
         {
-            if (db.Folders.Any(f => f.Path == folderPath)) return;
-
-            var newFolder = new Folder
+            if (newFolder.Path.StartsWith(folder.Path))
             {
-                Path = folderPath
-            };
+                // This folder is already in the database
+                return;
+            }
 
-            db.Folders.Add(newFolder);
-            await db.SaveChangesAsync();
+            if (!folder.Path.StartsWith(newFolder.Path)) continue;
+
+            // The new folder is the parent of this folder, so remove it. We don't do a full
+            // folder removal because the children will still be valid.
+            db.Folders.Remove(folder);
+            FolderRemoved?.Invoke(this, new FolderChangedEventArgs(folder.Path));
         }
 
-        await FireFolderEventAsync(await StorageFolder.GetFolderFromPathAsync(folderPath));
+        db.Folders.Add(new Folder { Path = newFolder.Path });
+        await db.SaveChangesAsync();
 
-        StartWatcher(folderPath);
-        QueueFolderScan(folderPath);
+        await AddRootFolder(newFolder.Path);
+
     }
 
     /*
@@ -554,7 +579,6 @@ public sealed partial class PhotoService : IDisposable
 
         foreach (var watcher in _watchers.Values)
         {
-            watcher.EnableRaisingEvents = false;
             watcher.Dispose();
         }
 
@@ -599,5 +623,29 @@ public sealed partial class PhotoService : IDisposable
 
             return new KeyValuePair(key.ToString().Trim().ToLowerInvariant(), value.ToString().Trim());
         }
+    }
+
+    public class FolderChangedEventArgs(string path) : EventArgs
+    {
+        public string Path { get; } = path;
+    }
+    public class ModelChangedEventArgs(long hash, string name, string version) : EventArgs
+    {
+        public long Hash { get; } = hash;
+        public string Name { get; } = name;
+        public string Version { get; } = version;
+    }
+
+    public sealed class PhotoChangedEventArgs(Photo photo) : EventArgs
+    {
+        public Photo Photo { get; } = photo;
+    }
+
+    public class ScanProgressEventArgs(string path, int processedFiles, int totalFiles) : EventArgs
+    {
+        public string Path { get; } = path;
+        public int ProcessedFiles { get; } = processedFiles;
+        public int TotalFiles { get; } = totalFiles;
+        public double Progress => TotalFiles > 0 ? (double)ProcessedFiles / TotalFiles : 0;
     }
 }
