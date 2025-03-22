@@ -42,6 +42,7 @@ namespace DiffusionView.Service
                 DirectoryRenamed?.Invoke(this, new DirectoryRenamedEventArgs(e.OldFullPath, e.FullPath));
             };
 
+
             _photoWatcher = new FileSystemWatcher(rootPath)
             {
                 EnableRaisingEvents = true,

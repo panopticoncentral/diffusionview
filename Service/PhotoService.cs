@@ -19,6 +19,7 @@ using System.Threading.Channels;
 using Windows.Graphics.Imaging;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Png;
+using MetadataExtractor.Formats.Jpeg;
 using Directory = System.IO.Directory;
 
 namespace DiffusionView.Service;
@@ -59,7 +60,12 @@ public sealed partial class PhotoService : IDisposable
      * File watching
      */
 
-    public static void ExtractMetadata(Stream stream, Photo photo)
+    public static void ExtractMetadataJpeg(Stream stream, Photo photo)
+    {
+        var directories = ImageMetadataReader.ReadMetadata(stream);
+    }
+
+    public static void ExtractMetadataPng(Stream stream, Photo photo)
     {
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
@@ -299,7 +305,16 @@ public sealed partial class PhotoService : IDisposable
         photo.ThumbnailData = thumbnail;
 
         var stream = await file.OpenStreamForReadAsync();
-        ExtractMetadata(stream, photo);
+        switch (Path.GetExtension(file.Path))
+        {
+            case ".png":
+                ExtractMetadataPng(stream, photo);
+                break;
+            case ".jpg":
+            case ".jpeg":
+                ExtractMetadataJpeg(stream, photo);
+                break;
+        }
 
         if (!isNew)
         {
@@ -401,7 +416,7 @@ public sealed partial class PhotoService : IDisposable
                     .ToHashSetAsync(cancellationToken);
 
                 var folder = await StorageFolder.GetFolderFromPathAsync(path);
-                var query = folder.CreateFileQueryWithOptions(new QueryOptions(CommonFileQuery.OrderByName, [".png"])
+                var query = folder.CreateFileQueryWithOptions(new QueryOptions(CommonFileQuery.OrderByName, [".png", ".jpg"])
                     { FolderDepth = FolderDepth.Deep });
 
                 var files = (await query.GetFilesAsync()).Select(f => f.Path).ToList();
@@ -454,7 +469,7 @@ public sealed partial class PhotoService : IDisposable
         var folderQuery =
             storageFolder.CreateFolderQueryWithOptions(new QueryOptions { FolderDepth = FolderDepth.Deep });
 
-        foreach (var subFolder in await folderQuery.GetFoldersAsync())
+        foreach (var subFolder in (await folderQuery.GetFoldersAsync()).OrderBy(f => f.Path))
         {
             DirectoryCreated(subFolder.Path);
         }
