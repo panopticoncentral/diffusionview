@@ -19,7 +19,6 @@ using System.Threading.Channels;
 using Windows.Graphics.Imaging;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Png;
-using MetadataExtractor.Formats.Jpeg;
 using Directory = System.IO.Directory;
 
 namespace DiffusionView.Service;
@@ -60,12 +59,7 @@ public sealed partial class PhotoService : IDisposable
      * File watching
      */
 
-    public static void ExtractMetadataJpeg(Stream stream, Photo photo)
-    {
-        var directories = ImageMetadataReader.ReadMetadata(stream);
-    }
-
-    public static void ExtractMetadataPng(Stream stream, Photo photo)
+    public static void ExtractMetadata(Stream stream, Photo photo)
     {
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
@@ -305,16 +299,7 @@ public sealed partial class PhotoService : IDisposable
         photo.ThumbnailData = thumbnail;
 
         var stream = await file.OpenStreamForReadAsync();
-        switch (Path.GetExtension(file.Path))
-        {
-            case ".png":
-                ExtractMetadataPng(stream, photo);
-                break;
-            case ".jpg":
-            case ".jpeg":
-                ExtractMetadataJpeg(stream, photo);
-                break;
-        }
+        ExtractMetadata(stream, photo);
 
         if (!isNew)
         {

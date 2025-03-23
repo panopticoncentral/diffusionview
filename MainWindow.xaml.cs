@@ -15,6 +15,7 @@ using Windows.Storage.Pickers;
 using Windows.System;
 using DiffusionView.Database;
 using WinRT.Interop;
+using Microsoft.EntityFrameworkCore;
 
 namespace DiffusionView;
 
@@ -345,6 +346,76 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         });
     }
 
+    private async Task DeleteFolderAsync(string folderPath)
+    {
+        try
+        {
+            var dialogContent = $"Are you sure you want to remove the folder '{folderPath}' from DiffusionView?\n\nThis will only remove the folder from the application and won't delete any files from your computer.";
+
+            var dialog = new ContentDialog
+            {
+                Title = "Remove Folder",
+                Content = dialogContent,
+                PrimaryButtonText = "Remove",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+
+            // If this is the selected folder, clear the photos
+            if (NavView.SelectedItem is NavigationViewItem selectedItem &&
+                selectedItem.Tag is string selectedPath &&
+                selectedPath == folderPath)
+            {
+                Photos.Clear();
+            }
+
+            // Remove the folder from the database
+            await using var db = new PhotoDatabase();
+            var folder = await db.Folders.FirstOrDefaultAsync(f => f.Path == folderPath);
+            if (folder != null)
+            {
+                db.Folders.Remove(folder);
+                await db.SaveChangesAsync();
+            }
+
+            // Remove the folder from the UI
+            RemoveFolderItem(folderPath, Folders);
+        }
+        catch (Exception ex)
+        {
+            // Show error dialog
+            var errorDialog = new ContentDialog
+            {
+                Title = "Error",
+                Content = $"An error occurred when trying to remove the folder: {ex.Message}",
+                CloseButtonText = "OK",
+                XamlRoot = Content.XamlRoot
+            };
+
+            await errorDialog.ShowAsync();
+        }
+    }
+
+    private MenuFlyout CreateFolderContextMenu(string folderPath)
+    {
+        var contextMenu = new MenuFlyout();
+
+        var deleteItem = new MenuFlyoutItem
+        {
+            Text = "Remove Folder",
+            Icon = new SymbolIcon(Symbol.Delete)
+        };
+
+        deleteItem.Click += async (sender, args) => await DeleteFolderAsync(folderPath);
+
+        contextMenu.Items.Add(deleteItem);
+        return contextMenu;
+    }
+
     private async Task AddFolderItemAsync(string path, ObservableCollection<NavigationViewItem> collection)
     {
         foreach (var collectionItem in collection)
@@ -396,7 +467,8 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             Content = content,
             Icon = new SymbolIcon(Symbol.Folder),
             MenuItemsSource = children,
-            Tag = path
+            Tag = path,
+            ContextFlyout = CreateFolderContextMenu(path)
         };
 
         InsertInCollectionInOrder(collection, item);
