@@ -20,6 +20,8 @@ using Windows.Graphics.Imaging;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Png;
 using Directory = System.IO.Directory;
+using MetadataExtractor.Formats.Exif;
+using MetadataExtractor.Util;
 
 namespace DiffusionView.Service;
 
@@ -61,32 +63,102 @@ public sealed partial class PhotoService : IDisposable
 
     public static void ExtractMetadata(Stream stream, Photo photo)
     {
+        try
+        {
+            switch (FileTypeDetector.DetectFileType(stream))
+            {
+                case FileType.Png:
+                    ExtractPngMetadata(stream, photo);
+                    break;
+                case FileType.Jpeg:
+                    ExtractJpegMetadata(stream, photo);
+                    break;
+                default:
+                    throw new NotSupportedException("File format detection failed or unsupported format.");
+            }
+        }
+        catch (Exception ex)
+        {
+            photo.Raw = $"Metadata extraction failed: {ex.Message}";
+            photo.Prompt = "Unknown prompt";
+            photo.NegativePrompt = "Unknown negative prompt";
+            photo.ModelHash = 0;
+        }
+    }
+
+    private static void ExtractPngMetadata(Stream stream, Photo photo)
+    {
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
         var textDirectories = directories.OfType<PngDirectory>().Where(d => d.Name == "PNG-tEXt").ToList();
-        if (textDirectories.Count != 1) throw new FormatException();
+        if (textDirectories.Count != 1) throw new FormatException("Expected exactly one PNG-tEXt directory");
 
         var textChunks = textDirectories.First().Tags
             .Where(t => t.Type == PngDirectory.TagTextualData)
             .Select(t => t.Description)
             .ToList();
 
-        if (textChunks.Count != 1) throw new FormatException();
+        if (textChunks.Count != 1) throw new FormatException("Expected exactly one textual data chunk");
 
         var raw = textChunks.First();
+        ParseStableDiffusionMetadata(raw, photo);
+    }
+
+    private static void ExtractJpegMetadata(Stream stream, Photo photo)
+    {
+        var directories = ImageMetadataReader.ReadMetadata(stream);
+
+        var exifSubIfdDirectory = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+        if (exifSubIfdDirectory == null) throw new FormatException("No Exif SubIFD directory found");
+
+        var textChunks = exifSubIfdDirectory.Tags
+            .Where(t => t.Type == ExifDirectoryBase.TagUserComment)
+            .Select(t => t.Description)
+            .ToList();
+
+        if (textChunks.Count != 1) throw new FormatException("Expected exactly one textual data chunk");
+
+        var userComment = CleanUserComment(textChunks.First());
+
+        if (string.IsNullOrWhiteSpace(userComment)) throw new FormatException("Empty UserComment tag in Exif SubIFD");
+
+        ParseStableDiffusionMetadata(userComment, photo);
+    }
+
+    private static string CleanUserComment(string comment)
+    {
+        if (comment.StartsWith("ASCII\0", StringComparison.OrdinalIgnoreCase))
+            return comment[6..];
+        if (comment.StartsWith("UNICODE\0", StringComparison.OrdinalIgnoreCase))
+            return comment[8..];
+
+        return comment;
+    }
+
+    private static void ParseStableDiffusionMetadata(string raw, Photo photo)
+    {
         photo.Raw = raw;
 
         var lines = raw.Split(['\n'], StringSplitOptions.RemoveEmptyEntries);
         var currentLine = 0;
 
-        var promptKeyValue = lines[currentLine].Split(':', 2);
-        if (promptKeyValue.Length != 2) throw new FormatException();
-        if (!promptKeyValue[0].Trim().ToLowerInvariant().Equals("parameters")) throw new FormatException();
+        while (currentLine < lines.Length && string.IsNullOrWhiteSpace(lines[currentLine]))
+        {
+            currentLine++;
+        }
 
-        var prompt = promptKeyValue[1].Trim();
+        if (currentLine >= lines.Length) throw new FormatException("No content in metadata");
+
+        var prompt = lines[currentLine];
+        if (prompt.StartsWith("parameters:", StringComparison.InvariantCultureIgnoreCase))
+        {
+            prompt = prompt[11..];
+        }
+
         currentLine++;
 
-        while (!lines[currentLine].StartsWith("negative prompt", StringComparison.InvariantCultureIgnoreCase) &&
+        while (currentLine < lines.Length &&
+               !lines[currentLine].StartsWith("negative prompt", StringComparison.InvariantCultureIgnoreCase) &&
                !lines[currentLine].StartsWith("steps", StringComparison.InvariantCultureIgnoreCase))
         {
             prompt += $" {lines[currentLine].Trim()}";
@@ -95,24 +167,25 @@ public sealed partial class PhotoService : IDisposable
 
         photo.Prompt = prompt;
 
-        if (lines[currentLine].StartsWith("negative prompt", StringComparison.InvariantCultureIgnoreCase))
+        if (currentLine < lines.Length && lines[currentLine].StartsWith("negative prompt", StringComparison.InvariantCultureIgnoreCase))
         {
             var negativePromptKeyValue = lines[currentLine].Split(':', 2);
-            if (negativePromptKeyValue.Length != 2) throw new FormatException();
-            if (negativePromptKeyValue[1].Trim().ToLowerInvariant().Equals("negative prompt"))
-                throw new FormatException();
+            if (negativePromptKeyValue.Length != 2) throw new FormatException("Invalid negative prompt format");
 
             var negativePrompt = negativePromptKeyValue[1].Trim();
             currentLine++;
 
-            while (!lines[currentLine].StartsWith("steps", StringComparison.InvariantCultureIgnoreCase))
+            while (currentLine < lines.Length && !lines[currentLine].StartsWith("steps", StringComparison.InvariantCultureIgnoreCase))
             {
-                prompt += $" {lines[currentLine].Trim()}";
+                negativePrompt += $" {lines[currentLine].Trim()}";
                 currentLine++;
             }
 
             photo.NegativePrompt = negativePrompt;
         }
+
+        if (currentLine >= lines.Length)
+            return; // No parameter data found, but we have prompts at least
 
         var otherParameters = new LineParser(lines[currentLine]);
 
@@ -123,38 +196,58 @@ public sealed partial class PhotoService : IDisposable
             switch (key)
             {
                 case "steps":
-                    if (!int.TryParse(value, out var steps)) throw new FormatException();
+                    if (!int.TryParse(value, out var steps)) throw new FormatException("Invalid steps value");
                     photo.Steps = steps;
                     break;
                 case "sampler":
                     photo.Sampler = value;
                     break;
                 case "cfg scale":
-                    if (!double.TryParse(value, out var cfgScale)) throw new FormatException();
+                    if (!double.TryParse(value, out var cfgScale)) throw new FormatException("Invalid cfg scale value");
                     photo.CfgScale = cfgScale;
                     break;
                 case "seed":
-                    if (!long.TryParse(value, NumberStyles.HexNumber, null, out var seed)) throw new FormatException();
-                    photo.Seed = seed;
+                    // Handle both decimal and hex seed formats
+                    if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!long.TryParse(value.Substring(2), NumberStyles.HexNumber, null, out var hexSeed))
+                            throw new FormatException("Invalid hex seed value");
+                        photo.Seed = hexSeed;
+                    }
+                    else
+                    {
+                        if (!long.TryParse(value, out var decimalSeed))
+                            throw new FormatException("Invalid decimal seed value");
+                        photo.Seed = decimalSeed;
+                    }
                     break;
                 case "size":
-                {
-                    var size = value.Split('x', 2);
-                    if (size.Length != 2) throw new FormatException();
-                    if (!int.TryParse(size[0], out var width)) throw new FormatException();
-                    photo.GeneratedWidth = width;
-                    if (!int.TryParse(size[1], out var height)) throw new FormatException();
-                    photo.GeneratedHeight = height;
-                    break;
-                }
+                    {
+                        var size = value.Split('x', 2);
+                        if (size.Length != 2) throw new FormatException("Invalid size format");
+                        if (!int.TryParse(size[0], out var width)) throw new FormatException("Invalid width value");
+                        photo.GeneratedWidth = width;
+                        if (!int.TryParse(size[1], out var height)) throw new FormatException("Invalid height value");
+                        photo.GeneratedHeight = height;
+                        break;
+                    }
                 case "model hash":
-                {
-                    if (!long.TryParse(value, NumberStyles.HexNumber, null, out var modelHash))
-                        throw new FormatException();
-                    photo.ModelHash = modelHash;
-                    break;
-
-                }
+                    {
+                        // Handle hash with or without 0x prefix
+                        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!long.TryParse(value.Substring(2), NumberStyles.HexNumber, null, out var modelHash))
+                                throw new FormatException("Invalid hex model hash");
+                            photo.ModelHash = modelHash;
+                        }
+                        else
+                        {
+                            if (!long.TryParse(value, NumberStyles.HexNumber, null, out var modelHash))
+                                throw new FormatException("Invalid hex model hash");
+                            photo.ModelHash = modelHash;
+                        }
+                        break;
+                    }
                 case "model":
                     photo.Model = value;
                     break;
@@ -166,9 +259,6 @@ public sealed partial class PhotoService : IDisposable
                     break;
             }
         }
-
-        currentLine++;
-        if (currentLine != lines.Length) throw new FormatException();
     }
 
     public static async Task<(string Name, string Version)?> FetchModelInformationAsync(long modelHash)
@@ -543,7 +633,7 @@ public sealed partial class PhotoService : IDisposable
             .ToListAsync();
 
         return photos
-            .Where(p => Path.GetDirectoryName(p.Path) == folderPath)
+            //.Where(p => Path.GetDirectoryName(p.Path) == folderPath)
             .ToList();
     }
 

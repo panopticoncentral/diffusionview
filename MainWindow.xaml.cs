@@ -365,9 +365,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             var result = await dialog.ShowAsync();
             if (result != ContentDialogResult.Primary) return;
 
-            // If this is the selected folder, clear the photos
-            if (NavView.SelectedItem is NavigationViewItem selectedItem &&
-                selectedItem.Tag is string selectedPath &&
+            if (NavView.SelectedItem is NavigationViewItem { Tag: string selectedPath } &&
                 selectedPath == folderPath)
             {
                 Photos.Clear();
