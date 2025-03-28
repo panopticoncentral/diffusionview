@@ -165,7 +165,7 @@ public sealed partial class PhotoService : IDisposable
             currentLine++;
         }
 
-        photo.Prompt = prompt;
+        photo.Prompt = prompt.Trim();
 
         if (currentLine < lines.Length && lines[currentLine].StartsWith("negative prompt", StringComparison.InvariantCultureIgnoreCase))
         {
@@ -181,7 +181,7 @@ public sealed partial class PhotoService : IDisposable
                 currentLine++;
             }
 
-            photo.NegativePrompt = negativePrompt;
+            photo.NegativePrompt = negativePrompt.Trim();
         }
 
         if (currentLine >= lines.Length)
@@ -236,7 +236,7 @@ public sealed partial class PhotoService : IDisposable
                         // Handle hash with or without 0x prefix
                         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                         {
-                            if (!long.TryParse(value.Substring(2), NumberStyles.HexNumber, null, out var modelHash))
+                            if (!long.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out var modelHash))
                                 throw new FormatException("Invalid hex model hash");
                             photo.ModelHash = modelHash;
                         }
@@ -254,9 +254,27 @@ public sealed partial class PhotoService : IDisposable
                 case "version":
                     photo.Version = value;
                     break;
+                case "civitai resources":
+                    ProcessCivitaiResources(photo, value);
+                    break;
                 default:
                     photo.OtherParameters[key] = value;
                     break;
+            }
+        }
+    }
+
+    private static void ProcessCivitaiResources(Photo photo, string value)
+    {
+        var elements = JsonSerializer.Deserialize<List<JsonElement>>(value);
+
+        foreach (var element in elements)
+        {
+            var type = element.GetProperty("type").GetString();
+
+            if (type == "checkpoint")
+            {
+                photo.ModelHash = element.GetProperty("modelVersionId").GetInt64();
             }
         }
     }
@@ -698,6 +716,24 @@ public sealed partial class PhotoService : IDisposable
                 {
                     value.Append(line[_index++]);
                     while (line[_index] != '"')
+                    {
+                        value.Append(line[_index++]);
+                    }
+                }
+
+                if (line[_index] == '{')
+                {
+                    value.Append(line[_index++]);
+                    while (line[_index] != '}')
+                    {
+                        value.Append(line[_index++]);
+                    }
+                }
+
+                if (line[_index] == '[')
+                {
+                    value.Append(line[_index++]);
+                    while (line[_index] != ']')
                     {
                         value.Append(line[_index++]);
                     }
