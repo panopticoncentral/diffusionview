@@ -187,7 +187,7 @@ public sealed partial class PhotoService : IDisposable
         if (currentLine >= lines.Length)
             return; // No parameter data found, but we have prompts at least
 
-        var otherParameters = new LineParser(lines[currentLine]);
+        var otherParameters = new LineParser(lines[currentLine].Trim());
 
         while (otherParameters.MorePairs)
         {
@@ -699,6 +699,36 @@ public sealed partial class PhotoService : IDisposable
 
         public bool MorePairs => _index < line.Length;
 
+        private void ScanMatching(StringBuilder value, char close, bool includeClose)
+        {
+            while (_index < line.Length && line[_index] != close)
+            {
+                var current = line[_index++];
+                value.Append(current);
+
+                switch (current)
+                {
+                    case '"':
+                        ScanMatching(value, '"', true);
+                        break;
+                    case '{':
+                        ScanMatching(value, '}', true);
+                        break;
+                    case '[':
+                        ScanMatching(value, ']', true);
+                        break;
+                }
+            }
+
+            if (_index >= line.Length) return;
+            if (includeClose)
+            {
+                value.Append(line[_index]);
+            }
+
+            _index++;
+        }
+
         public KeyValuePair GetNextKeyValuePair()
         {
             var key = new StringBuilder();
@@ -710,42 +740,7 @@ public sealed partial class PhotoService : IDisposable
             _index++;
 
             var value = new StringBuilder();
-            while (_index < line.Length && line[_index] != ',')
-            {
-                if (line[_index] == '"' && line.IndexOf('"', _index + 1) != -1)
-                {
-                    value.Append(line[_index++]);
-                    while (line[_index] != '"')
-                    {
-                        value.Append(line[_index++]);
-                    }
-                }
-
-                if (line[_index] == '{')
-                {
-                    value.Append(line[_index++]);
-                    while (line[_index] != '}')
-                    {
-                        value.Append(line[_index++]);
-                    }
-                }
-
-                if (line[_index] == '[')
-                {
-                    value.Append(line[_index++]);
-                    while (line[_index] != ']')
-                    {
-                        value.Append(line[_index++]);
-                    }
-                }
-
-                value.Append(line[_index++]);
-            }
-
-            if (_index < line.Length)
-            {
-                _index++;
-            }
+            ScanMatching(value, ',', false);
 
             return new KeyValuePair(key.ToString().Trim().ToLowerInvariant(), value.ToString().Trim());
         }
