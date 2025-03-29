@@ -5,11 +5,13 @@ namespace DiffusionView.Database;
 public sealed class Model
 {
     [Key]
-    public long Hash { get; set; }
+    public required long ModelVersionId { get; set; }
 
     [MaxLength(260)]
-    public required string Name { get; set; }
+    public required string ModelVersionName { get; set; }
+
+    public required long ModelId { get; set; }
 
     [MaxLength(260)]
-    public required string Version { get; set; }
+    public required string ModelName { get; set; }
 }

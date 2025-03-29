@@ -450,69 +450,60 @@
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
-                                        <TextBlock Grid.Row="0" 
-                                                   Grid.Column="0" 
-                                                   Text="Model:" />
-                                        <TextBox Grid.Row="0" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.Model, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="1"
+                                        <TextBlock Grid.Row="0"
                                                    Grid.Column="0"
-                                                   Text="Model hash:" />
-                                        <TextBox Grid.Row="1" 
+                                                   Text="Model Version ID:" />
+                                        <TextBox Grid.Row="0" 
                                                  Grid.Column="1"
-                                                 Text="{x:Bind FocusedItem.ModelHash, Mode=OneWay}"
+                                                 Text="{x:Bind FocusedItem.ModelVersionId, Mode=OneWay}"
                                                  Style="{StaticResource SelectableTextStyle}" />
 
-                                        <TextBlock Grid.Row="2" 
+                                        <TextBlock Grid.Row="1" 
                                                    Grid.Column="0" 
                                                    Text="Generated Resolution:" />
-                                        <TextBox Grid.Row="2" 
+                                        <TextBox Grid.Row="1" 
                                                  Grid.Column="1" 
                                                  Text="{x:Bind FocusedItem.GeneratedResolution, Mode=OneWay}"
                                                  Style="{StaticResource SelectableTextStyle}" />
 
-                                        <TextBlock Grid.Row="3" 
+                                        <TextBlock Grid.Row="2" 
                                                    Grid.Column="0" 
                                                    Text="Steps:" />
-                                        <TextBox Grid.Row="3" 
+                                        <TextBox Grid.Row="2" 
                                                  Grid.Column="1" 
                                                  Text="{x:Bind FocusedItem.Steps, Mode=OneWay}"
                                                  Style="{StaticResource SelectableTextStyle}" />
 
-                                        <TextBlock Grid.Row="4"
+                                        <TextBlock Grid.Row="3"
                                                    Grid.Column="0" 
                                                    Text="CFG scale:" />
-                                        <TextBox Grid.Row="4" 
+                                        <TextBox Grid.Row="3" 
                                                  Grid.Column="1" 
                                                  Text="{x:Bind FocusedItem.CfgScale, Mode=OneWay}"
                                                  Style="{StaticResource SelectableTextStyle}" />
 
-                                        <TextBlock Grid.Row="5"
+                                        <TextBlock Grid.Row="4"
                                                    Grid.Column="0"
                                                    Text="Sampler:" />
-                                        <TextBox Grid.Row="5" 
+                                        <TextBox Grid.Row="4" 
                                                  Grid.Column="1"
                                                  Text="{x:Bind FocusedItem.Sampler, Mode=OneWay}"
                                                  Style="{StaticResource SelectableTextStyle}" />
 
-                                        <TextBlock Grid.Row="6" 
+                                        <TextBlock Grid.Row="5" 
                                                    Grid.Column="0"
                                                    Text="Seed:" />
-                                        <TextBox Grid.Row="6"
+                                        <TextBox Grid.Row="5"
                                                  Grid.Column="1" 
                                                  Text="{x:Bind FocusedItem.Seed, Mode=OneWay}"
                                                  Style="{StaticResource SelectableTextStyle}" />
 
-                                        <TextBlock Grid.Row="7"
+                                        <TextBlock Grid.Row="6"
                                                    Grid.Column="0" 
                                                    Text="Version:" />
-                                        <TextBox Grid.Row="7" 
+                                        <TextBox Grid.Row="6" 
                                                  Grid.Column="1" 
                                                  Text="{x:Bind FocusedItem.Version, Mode=OneWay}"
                                                  Style="{StaticResource SelectableTextStyle}" />

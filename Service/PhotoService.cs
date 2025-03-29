@@ -61,17 +61,17 @@ public sealed partial class PhotoService : IDisposable
      * File watching
      */
 
-    public static void ExtractMetadata(Stream stream, Photo photo)
+    public static async Task ExtractMetadata(Stream stream, Photo photo)
     {
         try
         {
             switch (FileTypeDetector.DetectFileType(stream))
             {
                 case FileType.Png:
-                    ExtractPngMetadata(stream, photo);
+                    await ExtractPngMetadata(stream, photo);
                     break;
                 case FileType.Jpeg:
-                    ExtractJpegMetadata(stream, photo);
+                    await ExtractJpegMetadata(stream, photo);
                     break;
                 default:
                     throw new NotSupportedException("File format detection failed or unsupported format.");
@@ -80,13 +80,10 @@ public sealed partial class PhotoService : IDisposable
         catch (Exception ex)
         {
             photo.Raw = $"Metadata extraction failed: {ex.Message}";
-            photo.Prompt = "Unknown prompt";
-            photo.NegativePrompt = "Unknown negative prompt";
-            photo.ModelHash = 0;
         }
     }
 
-    private static void ExtractPngMetadata(Stream stream, Photo photo)
+    private static async Task ExtractPngMetadata(Stream stream, Photo photo)
     {
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
@@ -101,10 +98,10 @@ public sealed partial class PhotoService : IDisposable
         if (textChunks.Count != 1) throw new FormatException("Expected exactly one textual data chunk");
 
         var raw = textChunks.First();
-        ParseStableDiffusionMetadata(raw, photo);
+        await ParseStableDiffusionMetadata(raw, photo);
     }
 
-    private static void ExtractJpegMetadata(Stream stream, Photo photo)
+    private static async Task ExtractJpegMetadata(Stream stream, Photo photo)
     {
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
@@ -122,7 +119,7 @@ public sealed partial class PhotoService : IDisposable
 
         if (string.IsNullOrWhiteSpace(userComment)) throw new FormatException("Empty UserComment tag in Exif SubIFD");
 
-        ParseStableDiffusionMetadata(userComment, photo);
+        await ParseStableDiffusionMetadata(userComment, photo);
     }
 
     private static string CleanUserComment(string comment)
@@ -135,7 +132,7 @@ public sealed partial class PhotoService : IDisposable
         return comment;
     }
 
-    private static void ParseStableDiffusionMetadata(string raw, Photo photo)
+    private static async Task ParseStableDiffusionMetadata(string raw, Photo photo)
     {
         photo.Raw = raw;
 
@@ -167,7 +164,8 @@ public sealed partial class PhotoService : IDisposable
 
         photo.Prompt = prompt.Trim();
 
-        if (currentLine < lines.Length && lines[currentLine].StartsWith("negative prompt", StringComparison.InvariantCultureIgnoreCase))
+        if (currentLine < lines.Length &&
+            lines[currentLine].StartsWith("negative prompt", StringComparison.InvariantCultureIgnoreCase))
         {
             var negativePromptKeyValue = lines[currentLine].Split(':', 2);
             if (negativePromptKeyValue.Length != 2) throw new FormatException("Invalid negative prompt format");
@@ -175,7 +173,8 @@ public sealed partial class PhotoService : IDisposable
             var negativePrompt = negativePromptKeyValue[1].Trim();
             currentLine++;
 
-            while (currentLine < lines.Length && !lines[currentLine].StartsWith("steps", StringComparison.InvariantCultureIgnoreCase))
+            while (currentLine < lines.Length &&
+                   !lines[currentLine].StartsWith("steps", StringComparison.InvariantCultureIgnoreCase))
             {
                 negativePrompt += $" {lines[currentLine].Trim()}";
                 currentLine++;
@@ -220,42 +219,44 @@ public sealed partial class PhotoService : IDisposable
                             throw new FormatException("Invalid decimal seed value");
                         photo.Seed = decimalSeed;
                     }
+
                     break;
                 case "size":
-                    {
-                        var size = value.Split('x', 2);
-                        if (size.Length != 2) throw new FormatException("Invalid size format");
-                        if (!int.TryParse(size[0], out var width)) throw new FormatException("Invalid width value");
-                        photo.GeneratedWidth = width;
-                        if (!int.TryParse(size[1], out var height)) throw new FormatException("Invalid height value");
-                        photo.GeneratedHeight = height;
-                        break;
-                    }
+                {
+                    var size = value.Split('x', 2);
+                    if (size.Length != 2) throw new FormatException("Invalid size format");
+                    if (!int.TryParse(size[0], out var width)) throw new FormatException("Invalid width value");
+                    photo.GeneratedWidth = width;
+                    if (!int.TryParse(size[1], out var height)) throw new FormatException("Invalid height value");
+                    photo.GeneratedHeight = height;
+                    break;
+                }
                 case "model hash":
+                {
+                    long modelHash;
+
+                    if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Handle hash with or without 0x prefix
-                        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (!long.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out var modelHash))
-                                throw new FormatException("Invalid hex model hash");
-                            photo.ModelHash = modelHash;
-                        }
-                        else
-                        {
-                            if (!long.TryParse(value, NumberStyles.HexNumber, null, out var modelHash))
-                                throw new FormatException("Invalid hex model hash");
-                            photo.ModelHash = modelHash;
-                        }
-                        break;
+                        if (!long.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out modelHash))
+                            throw new FormatException("Invalid hex model hash");
                     }
+                    else
+                    {
+                        if (!long.TryParse(value, NumberStyles.HexNumber, null, out modelHash))
+                            throw new FormatException("Invalid hex model hash");
+                    }
+
+                    photo.ModelVersionId = await FetchModelVersionIdAsync(modelHash) ?? 0;
+                    break;
+                }
                 case "model":
-                    photo.Model = value;
+                    // Ignore.
                     break;
                 case "version":
                     photo.Version = value;
                     break;
                 case "civitai resources":
-                    ProcessCivitaiResources(photo, value);
+                    photo.ModelVersionId = ProcessCivitaiResources(value);
                     break;
                 default:
                     photo.OtherParameters[key] = value;
@@ -264,7 +265,7 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private static void ProcessCivitaiResources(Photo photo, string value)
+    private static long ProcessCivitaiResources(string value)
     {
         var elements = JsonSerializer.Deserialize<List<JsonElement>>(value);
 
@@ -274,12 +275,14 @@ public sealed partial class PhotoService : IDisposable
 
             if (type == "checkpoint")
             {
-                photo.ModelHash = element.GetProperty("modelVersionId").GetInt64();
+                return element.GetProperty("modelVersionId").GetInt64();
             }
         }
+
+        return 0;
     }
 
-    public static async Task<(string Name, string Version)?> FetchModelInformationAsync(long modelHash)
+    private static async Task<long?> FetchModelVersionIdAsync(long modelHash)
     {
         var url = $"https://civitai.com/api/v1/model-versions/by-hash/{modelHash:X10}";
         var client = new HttpClient();
@@ -291,10 +294,32 @@ public sealed partial class PhotoService : IDisposable
             var json = await response.Content.ReadAsStringAsync();
             var document = JsonDocument.Parse(json);
 
-            var version = document.RootElement.GetProperty("name").GetString();
-            var name = document.RootElement.GetProperty("model").GetProperty("name").GetString();
+            return document.RootElement.GetProperty("id").GetInt64();
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
 
-            return (name, version);
+
+    private static async Task<Model> FetchModelInformationAsync(Photo photo)
+    {
+        var url = $"https://civitai.com/api/v1/model-versions/{photo.ModelVersionId}";
+        var client = new HttpClient();
+        var response = await client.GetAsync(url);
+        if (!response.IsSuccessStatusCode) return new Model { ModelId = 0, ModelName = "<Unknown>", ModelVersionName = "<Unknown>", ModelVersionId = photo.ModelVersionId};
+
+        try
+        {
+            var json = await response.Content.ReadAsStringAsync();
+            var document = JsonDocument.Parse(json);
+
+            var modelVersionName = document.RootElement.GetProperty("name").GetString();
+            var modelName = document.RootElement.GetProperty("model").GetProperty("name").GetString();
+            var modelId = document.RootElement.GetProperty("modelId").GetInt64();
+
+            return new Model {ModelId = modelId, ModelName = modelName, ModelVersionId = photo.ModelVersionId, ModelVersionName = modelVersionName};
         }
         catch (Exception)
         {
@@ -407,7 +432,7 @@ public sealed partial class PhotoService : IDisposable
         photo.ThumbnailData = thumbnail;
 
         var stream = await file.OpenStreamForReadAsync();
-        ExtractMetadata(stream, photo);
+        await ExtractMetadata(stream, photo);
 
         if (!isNew)
         {
@@ -416,19 +441,13 @@ public sealed partial class PhotoService : IDisposable
 
         PhotoAdded?.Invoke(this, new PhotoChangedEventArgs(photo));
 
-        var model = await db.Models.FirstOrDefaultAsync(m => m.Hash == photo.ModelHash);
+        var model = await db.Models.FirstOrDefaultAsync(m => m.ModelVersionId == photo.ModelVersionId);
         if (model == null)
         {
-            var modelInfo = await FetchModelInformationAsync(photo.ModelHash);
+            model = await FetchModelInformationAsync(photo);
 
-            model = new Model
-            {
-                Hash = photo.ModelHash,
-                Name = modelInfo?.Name ?? photo.Model,
-                Version = modelInfo?.Version ?? photo.ModelHash.ToString("X10")
-            };
             db.Models.Add(model);
-            ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.Hash, model.Name, model.Version));
+            ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
         }
 
         await db.SaveChangesAsync();
@@ -443,13 +462,13 @@ public sealed partial class PhotoService : IDisposable
         db.Photos.Remove(existingPhoto);
         PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(existingPhoto));
 
-        if (!await db.Photos.AnyAsync(p => p.ModelHash == existingPhoto.ModelHash))
+        if (!await db.Photos.AnyAsync(p => p.ModelVersionId == existingPhoto.ModelVersionId))
         {
-            var model = await db.Models.FirstOrDefaultAsync(m => m.Hash == existingPhoto.ModelHash);
+            var model = await db.Models.FirstOrDefaultAsync(m => m.ModelVersionId == existingPhoto.ModelVersionId);
             if (model != null)
             {
                 db.Models.Remove(model);
-                ModelRemoved?.Invoke(this, new ModelChangedEventArgs(model.Hash, model.Name, model.Version));
+                ModelRemoved?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
             }
         }
 
@@ -593,13 +612,13 @@ public sealed partial class PhotoService : IDisposable
 
         foreach (var model in await db.Models.ToListAsync())
         {
-            if (!await db.Photos.AnyAsync(p => p.ModelHash == model.Hash))
+            if (!await db.Photos.AnyAsync(p => p.ModelVersionId == model.ModelVersionId))
             {
                 db.Models.Remove(model);
             }
             else
             {
-                ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.Hash, model.Name, model.Version));
+                ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
             }
         }
 
@@ -655,11 +674,11 @@ public sealed partial class PhotoService : IDisposable
             .ToList();
     }
 
-    public static async Task<List<Photo>> GetPhotosByModelAsync(long modelHash)
+    public static async Task<List<Photo>> GetPhotosByModelVersionIdAsync(long modelVersionId)
     {
         var db = new PhotoDatabase();
         return await db.Photos
-            .Where(p => p.ModelHash == modelHash)
+            .Where(p => p.ModelVersionId == modelVersionId)
             .AsNoTracking()
             .ToListAsync();
     }
@@ -750,11 +769,12 @@ public sealed partial class PhotoService : IDisposable
     {
         public string Path { get; } = path;
     }
-    public class ModelChangedEventArgs(long hash, string name, string version) : EventArgs
+
+    public class ModelChangedEventArgs(long modelVersionId, string modelName, string modelVersionName) : EventArgs
     {
-        public long Hash { get; } = hash;
-        public string Name { get; } = name;
-        public string Version { get; } = version;
+        public long ModelVersionId { get; } = modelVersionId;
+        public string ModelName { get; } = modelName;
+        public string ModelVersionName { get; } = modelVersionName;
     }
 
     public sealed class PhotoChangedEventArgs(Photo photo) : EventArgs

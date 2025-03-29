@@ -36,7 +36,7 @@ public sealed partial class PhotoDatabase : DbContext
             .IsUnique();
 
         modelBuilder.Entity<Photo>()
-            .HasIndex(p => p.ModelHash);
+            .HasIndex(p => p.ModelVersionId);
 
         modelBuilder.Entity<Photo>()
             .Property(e => e.OtherParameters)

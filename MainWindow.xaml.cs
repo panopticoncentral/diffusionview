@@ -228,9 +228,9 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 await SelectFolder(folderPath);
             }
 
-            if (item.Icon is SymbolIcon { Symbol: Symbol.Contact } && item.Tag is long modelHash)
+            if (item.Icon is SymbolIcon { Symbol: Symbol.Contact } && item.Tag is long modelVersionId)
             {
-                await SelectModel(modelHash);
+                await SelectModel(modelVersionId);
             }
         }
         catch (Exception)
@@ -408,7 +408,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             Icon = new SymbolIcon(Symbol.Delete)
         };
 
-        deleteItem.Click += async (sender, args) => await DeleteFolderAsync(folderPath);
+        deleteItem.Click += async (_, _) => await DeleteFolderAsync(folderPath);
 
         contextMenu.Items.Add(deleteItem);
         return contextMenu;
@@ -555,8 +555,8 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                     when item.Tag is string folderPath
                          && Path.GetDirectoryName(e.Photo.Path) == folderPath:
                 case SymbolIcon { Symbol: Symbol.Contact }
-                    when item.Tag is long modelHash
-                         && e.Photo.ModelHash == modelHash:
+                    when item.Tag is long modelVersionId
+                         && e.Photo.ModelVersionId == modelVersionId:
                 {
                     var photo = new PhotoItem(e.Photo);
                     Photos.Add(photo);
@@ -572,12 +572,12 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         DispatcherQueue.TryEnqueue(() =>
         {
             ObservableCollection<NavigationViewItem> versions;
-            var modelItem = Models.SingleOrDefault(m => (string)m.Content == e.Name);
+            var modelItem = Models.SingleOrDefault(m => (string)m.Content == e.ModelName);
             if (modelItem == null)
             {
                 modelItem = new NavigationViewItem
                 {
-                    Content = e.Name,
+                    Content = e.ModelName,
                     Icon = new SymbolIcon(Symbol.Contact)
                 };
 
@@ -593,9 +593,9 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
             var version = new NavigationViewItem
             {
-                Content = e.Version,
+                Content = e.ModelVersionName,
                 Icon = new SymbolIcon(Symbol.Contact),
-                Tag = e.Hash
+                Tag = e.ModelVersionId
             };
 
             InsertInCollectionInOrder(versions, version);
@@ -607,7 +607,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
-            var modelItem = Models.SingleOrDefault(m => (string)m.Content == e.Name);
+            var modelItem = Models.SingleOrDefault(m => (string)m.Content == e.ModelName);
             if (modelItem == null) return;
 
             var versions = (ObservableCollection<NavigationViewItem>)modelItem.MenuItemsSource;
@@ -616,7 +616,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             for (versionIndex = 0; versionIndex < versions.Count; versionIndex++)
             {
                 var version = versions[versionIndex];
-                if (string.Compare((string)version.Content, e.Version, StringComparison.InvariantCultureIgnoreCase) > 0) break;
+                if (string.Compare((string)version.Content, e.ModelVersionName, StringComparison.InvariantCultureIgnoreCase) > 0) break;
             }
 
             if (versionIndex == versions.Count) return;
@@ -624,9 +624,9 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             if (NavView.SelectedItem is NavigationViewItem
                 {
                     Icon: SymbolIcon { Symbol: Symbol.Contact },
-                    Tag: long modelHash
+                    Tag: long modelVersionId
                 }
-                && modelHash == e.Hash)
+                && modelVersionId == e.ModelVersionId)
             {
                 Photos.Clear();
             }
@@ -754,9 +754,9 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 : PhotoService.GetPhotosForFolderAsync(folderPath));
     }
 
-    private async Task SelectModel(long modelHash)
+    private async Task SelectModel(long modelVersionId)
     {
-        await NavigateTo(() => PhotoService.GetPhotosByModelAsync(modelHash));
+        await NavigateTo(() => PhotoService.GetPhotosByModelVersionIdAsync(modelVersionId));
     }
     
     private async Task DeleteSelectedItemsAsync()
