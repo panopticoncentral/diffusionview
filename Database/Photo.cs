@@ -44,8 +44,18 @@ public sealed class Photo
     
     public long Seed { get; set; }
 
+    public long ModelId { get; set; }
+
+    public string ModelName { get; set; }
+
     public long ModelVersionId { get; set; }
-    
+
+    public string ModelVersionName { get; set; }
+
+    public int ClipSkip { get; set; }
+
+    public double DenoisingStrength { get; set; }
+
     [MaxLength(64)]
     public string Version { get; set; }
     public Dictionary<string, string> OtherParameters { get; set; } = [];

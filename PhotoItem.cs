@@ -29,8 +29,11 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _generatedResolution = $"{photo.GeneratedWidth} x {photo.GeneratedHeight}";
     private string _sampler = photo.Sampler ?? "Unknown";
     private string _cfgScale = photo.CfgScale != 0 ? photo.CfgScale.ToString("F1") : "Unknown";
-    private string _seed = photo.Seed != 0 ? photo.Seed.ToString("X") : "Unknown";
-    private long _modelVersionId = photo.ModelVersionId;
+    private string _seed = photo.Seed != 0 ? photo.Seed.ToString() : "Unknown";
+    private string _modelName = photo.ModelName;
+    private string _modelVersionName = photo.ModelVersionName;
+    private int _clipSkip = photo.ClipSkip;
+    private double _denoisingStrength = photo.DenoisingStrength;
     private string _version = photo.Version ?? "Unknown";
     private Dictionary<string, string> _otherParameters = new(photo.OtherParameters);
     private string _raw = photo.Raw ?? "No raw data available";
@@ -161,10 +164,28 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
         set => SetProperty(ref _seed, value);
     }
 
-    public long ModelVersionId
+    public string ModelName
     {
-        get => _modelVersionId;
-        set => SetProperty(ref _modelVersionId, value);
+        get => _modelName;
+        set => SetProperty(ref _modelName, value);
+    }
+
+    public string ModelVersionName
+    {
+        get => _modelVersionName;
+        set => SetProperty(ref _modelVersionName, value);
+    }
+
+    public int ClipSkip
+    {
+        get => _clipSkip;
+        set => SetProperty(ref _clipSkip, value);
+    }
+
+    public double DenoisingStrength
+    {
+        get => _denoisingStrength;
+        set => SetProperty(ref _denoisingStrength, value);
     }
 
     public string Version

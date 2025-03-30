@@ -252,6 +252,15 @@ public sealed partial class PhotoService : IDisposable
                 case "civitai resources":
                     photo.ModelVersionId = ProcessCivitaiResources(value);
                     break;
+                case "clip skip":
+                    if (!int.TryParse(value, out var clipSkip)) throw new FormatException("Invalid clip skip value");
+                    photo.ClipSkip = clipSkip;
+                    break;
+                case "denoising strength":
+                    if (!double.TryParse(value, out var denoisingStrength))
+                        throw new FormatException("Invalid denoising strength value");
+                    photo.DenoisingStrength = denoisingStrength;
+                    break;
                 default:
                     photo.OtherParameters[key] = value;
                     break;
@@ -442,21 +451,28 @@ public sealed partial class PhotoService : IDisposable
             photo.Raw = $"Metadata extraction failed: {ex.Message}";
         }
 
+        var model = await db.Models.FirstOrDefaultAsync(m => m.ModelVersionId == photo.ModelVersionId);
+        if (model == null)
+        {
+            model = await FetchModelInformationAsync(photo);
+
+            if (model.ModelId != 0)
+            {
+                db.Models.Add(model);
+                ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
+            }
+        }
+
+        photo.ModelId = model.ModelId;
+        photo.ModelName = model.ModelName;
+        photo.ModelVersionName = model.ModelVersionName;
+
         if (!isNew)
         {
             PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
         }
 
         PhotoAdded?.Invoke(this, new PhotoChangedEventArgs(photo));
-
-        var model = await db.Models.FirstOrDefaultAsync(m => m.ModelVersionId == photo.ModelVersionId);
-        if (model == null)
-        {
-            model = await FetchModelInformationAsync(photo);
-
-            db.Models.Add(model);
-            ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
-        }
 
         await db.SaveChangesAsync();
     }
