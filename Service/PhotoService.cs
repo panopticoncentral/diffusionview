@@ -11,6 +11,7 @@ using Windows.Storage.Streams;
 using Windows.Storage;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Linq.Expressions;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -61,34 +62,16 @@ public sealed partial class PhotoService : IDisposable
      * File watching
      */
 
-    public static async Task ExtractMetadata(Stream stream, Photo photo)
-    {
-        try
-        {
-            switch (FileTypeDetector.DetectFileType(stream))
-            {
-                case FileType.Png:
-                    await ExtractPngMetadata(stream, photo);
-                    break;
-                case FileType.Jpeg:
-                    await ExtractJpegMetadata(stream, photo);
-                    break;
-                default:
-                    throw new NotSupportedException("File format detection failed or unsupported format.");
-            }
-        }
-        catch (Exception ex)
-        {
-            photo.Raw = $"Metadata extraction failed: {ex.Message}";
-        }
-    }
-
     private static async Task ExtractPngMetadata(Stream stream, Photo photo)
     {
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
         var textDirectories = directories.OfType<PngDirectory>().Where(d => d.Name == "PNG-tEXt").ToList();
-        if (textDirectories.Count != 1) throw new FormatException("Expected exactly one PNG-tEXt directory");
+        if (textDirectories.Count != 1)
+        {
+            photo.Raw = "Expected exactly one PNG-tEXt directory";
+            return;
+        }
 
         var textChunks = textDirectories.First().Tags
             .Where(t => t.Type == PngDirectory.TagTextualData)
@@ -106,12 +89,22 @@ public sealed partial class PhotoService : IDisposable
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
         var exifSubIfdDirectory = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
-        if (exifSubIfdDirectory == null) throw new FormatException("No Exif SubIFD directory found");
+        if (exifSubIfdDirectory == null)
+        {
+            photo.Raw = "No Exif SubIFD directory found";
+            return;
+        }
 
         var textChunks = exifSubIfdDirectory.Tags
             .Where(t => t.Type == ExifDirectoryBase.TagUserComment)
             .Select(t => t.Description)
             .ToList();
+
+        if (textChunks.Count == 0)
+        {
+            photo.Raw = "No UserComment tag in Exif SubIFD";
+            return;
+        }
 
         if (textChunks.Count != 1) throw new FormatException("Expected exactly one textual data chunk");
 
@@ -232,23 +225,24 @@ public sealed partial class PhotoService : IDisposable
                     break;
                 }
                 case "model hash":
-                {
-                    long modelHash;
-
-                    if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrWhiteSpace(value))
                     {
-                        if (!long.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out modelHash))
-                            throw new FormatException("Invalid hex model hash");
-                    }
-                    else
-                    {
-                        if (!long.TryParse(value, NumberStyles.HexNumber, null, out modelHash))
-                            throw new FormatException("Invalid hex model hash");
-                    }
+                        long modelHash;
 
-                    photo.ModelVersionId = await FetchModelVersionIdAsync(modelHash) ?? 0;
+                        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!long.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out modelHash))
+                                throw new FormatException("Invalid hex model hash");
+                        }
+                        else
+                        {
+                            if (!long.TryParse(value, NumberStyles.HexNumber, null, out modelHash))
+                                throw new FormatException("Invalid hex model hash");
+                        }
+
+                        photo.ModelVersionId = await FetchModelVersionIdAsync(modelHash) ?? 0;
+                    }
                     break;
-                }
                 case "model":
                     // Ignore.
                     break;
@@ -327,29 +321,21 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    public static async Task<byte[]> LoadScaledImageAsync(StorageFile sourceFile, uint targetHeight)
+    public static async Task LoadScaledImageAsync(StorageFile sourceFile, Photo photo, uint targetHeight)
     {
-        using var sourceStream = await sourceFile.OpenAsync(FileAccessMode.Read);
-        var decoder = await BitmapDecoder.CreateAsync(sourceStream);
+        var fileBytes = await FileIO.ReadBufferAsync(sourceFile);
+        var bytes = fileBytes.ToArray();
 
-        var aspectRatio = (double)decoder.PixelWidth / decoder.PixelHeight;
+        using var image = new ImageMagick.MagickImage(bytes);
+        var aspectRatio = (double)image.Width / image.Height;
         var newWidth = (uint)(targetHeight * aspectRatio);
 
-        using var resizedStream = new InMemoryRandomAccessStream();
+        image.Resize(newWidth, targetHeight);
 
-        var encoder = await BitmapEncoder.CreateForTranscodingAsync(resizedStream, decoder);
+        image.Format = ImageMagick.MagickFormat.Jpeg;
+        image.Quality = 90;
 
-        encoder.BitmapTransform.ScaledHeight = targetHeight;
-        encoder.BitmapTransform.ScaledWidth = newWidth;
-
-        encoder.BitmapTransform.InterpolationMode = BitmapInterpolationMode.Fant;
-
-        await encoder.FlushAsync();
-
-        var bytes = new byte[resizedStream.Size];
-        await resizedStream.ReadAsync(bytes.AsBuffer(), (uint)resizedStream.Size, InputStreamOptions.None);
-
-        return bytes;
+        photo.ThumbnailData = image.ToByteArray();
     }
 
     private void DirectoryCreated(string path)
@@ -428,11 +414,33 @@ public sealed partial class PhotoService : IDisposable
         photo.Height = (int)imageProps.Height;
         photo.LastModified = props.DateModified.DateTime;
 
-        var thumbnail = await LoadScaledImageAsync(file, 400);
-        photo.ThumbnailData = thumbnail;
-
         var stream = await file.OpenStreamForReadAsync();
-        await ExtractMetadata(stream, photo);
+
+        try
+        {
+            var fileType = FileTypeDetector.DetectFileType(stream);
+            switch (fileType)
+            {
+                case FileType.Png:
+                    await ExtractPngMetadata(stream, photo);
+                    await LoadScaledImageAsync(file, photo, 400);
+                    break;
+                case FileType.Jpeg:
+                    await ExtractJpegMetadata(stream, photo);
+                    await LoadScaledImageAsync(file, photo, 400);
+                    break;
+                default:
+                    photo.Raw = $"Unsupported format: {fileType}";
+                    var unsupportedImage = new ImageMagick.MagickImage(ImageMagick.MagickColors.Red, 225, 400);
+                    unsupportedImage.Format = ImageMagick.MagickFormat.Jpeg;
+                    photo.ThumbnailData = unsupportedImage.ToByteArray();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            photo.Raw = $"Metadata extraction failed: {ex.Message}";
+        }
 
         if (!isNew)
         {
@@ -751,6 +759,12 @@ public sealed partial class PhotoService : IDisposable
         public KeyValuePair GetNextKeyValuePair()
         {
             var key = new StringBuilder();
+            
+            while (_index < line.Length && (line[_index] == ' ' || line[_index] == ','))
+            {
+                _index++;
+            }
+
             while (line[_index] != ':')
             {
                 key.Append(line[_index++]);
