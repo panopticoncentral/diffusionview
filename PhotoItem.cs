@@ -34,6 +34,11 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _modelVersionName = photo.ModelVersionName;
     private int _clipSkip = photo.ClipSkip;
     private double _denoisingStrength = photo.DenoisingStrength;
+    private long _variationSeed = photo.VariationSeed;
+    private double _variationSeedStrength = photo.VariationSeedStrength;
+    private double _hiresUpscale = photo.HiresUpscale;
+    private string _hiresUpscaler = photo.HiresUpscaler ?? "";
+    private string _vae = photo.Vae ?? "";
     private string _version = photo.Version ?? "Unknown";
     private Dictionary<string, string> _otherParameters = new(photo.OtherParameters);
     private string _raw = photo.Raw ?? "No raw data available";
@@ -186,6 +191,36 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     {
         get => _denoisingStrength;
         set => SetProperty(ref _denoisingStrength, value);
+    }
+
+    public long VariationSeed
+    {
+        get => _variationSeed;
+        set => SetProperty(ref _variationSeed, value);
+    }
+
+    public double VariationSeedStrength
+    {
+        get => _variationSeedStrength;
+        set => SetProperty(ref _variationSeedStrength, value);
+    }
+
+    public double HiresUpscale
+    {
+        get => _hiresUpscale;
+        set => SetProperty(ref _hiresUpscale, value);
+    }
+
+    public string HiresUpscaler
+    {
+        get => _hiresUpscaler;
+        set => SetProperty(ref _hiresUpscaler, value);
+    }
+
+    public string Vae
+    {
+        get => _vae;
+        set => SetProperty(ref _vae, value);
     }
 
     public string Version

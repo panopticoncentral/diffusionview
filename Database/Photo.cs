@@ -46,10 +46,12 @@ public sealed class Photo
 
     public long ModelId { get; set; }
 
+    [MaxLength(64)]
     public string ModelName { get; set; }
 
     public long ModelVersionId { get; set; }
 
+    [MaxLength(64)]
     public string ModelVersionName { get; set; }
 
     public int ClipSkip { get; set; }
@@ -57,7 +59,21 @@ public sealed class Photo
     public double DenoisingStrength { get; set; }
 
     [MaxLength(64)]
+    public string Vae { get; set; }
+
+    public long VariationSeed { get; set; }
+
+    public double VariationSeedStrength { get; set; }
+
+    public double HiresUpscale { get; set; }
+
+    [MaxLength(64)] 
+    public string HiresUpscaler { get; set; }
+
+
+    [MaxLength(64)]
     public string Version { get; set; }
+
     public Dictionary<string, string> OtherParameters { get; set; } = [];
     
     [MaxLength(1024)]

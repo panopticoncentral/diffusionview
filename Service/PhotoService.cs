@@ -180,6 +180,7 @@ public sealed partial class PhotoService : IDisposable
             return; // No parameter data found, but we have prompts at least
 
         var otherParameters = new LineParser(lines[currentLine].Trim());
+        string vaeHash = null;
 
         while (otherParameters.MorePairs)
         {
@@ -187,22 +188,68 @@ public sealed partial class PhotoService : IDisposable
 
             switch (key)
             {
-                case "steps":
-                    if (!int.TryParse(value, out var steps)) throw new FormatException("Invalid steps value");
-                    photo.Steps = steps;
+                case "civitai resources":
+                    photo.ModelVersionId = ProcessCivitaiResources(value);
                     break;
-                case "sampler":
-                    photo.Sampler = value;
+
+                case "clip skip":
+                    if (!int.TryParse(value, out var clipSkip)) throw new FormatException("Invalid clip skip value");
+                    photo.ClipSkip = clipSkip;
                     break;
+
                 case "cfg scale":
                     if (!double.TryParse(value, out var cfgScale)) throw new FormatException("Invalid cfg scale value");
                     photo.CfgScale = cfgScale;
                     break;
-                case "seed":
-                    // Handle both decimal and hex seed formats
+
+                case "created date":
+                    // Ignore.
+                    break;
+
+                case "denoising strength":
+                    if (!double.TryParse(value, out var denoisingStrength)) throw new FormatException("Invalid denoising strength value");
+                    photo.DenoisingStrength = denoisingStrength;
+                    break;
+
+                case "hires upscale":
+                    if (!double.TryParse(value, out var hiresUpscale)) throw new FormatException("Invalid hires upscale value");
+                    photo.HiresUpscale = hiresUpscale;
+                    break;
+
+                case "hires upscaler":
+                    photo.HiresUpscaler = value;
+                    break;
+
+                case "model":
+                    // Ignore.
+                    break;
+
+                case "model hash":
+                    if (string.IsNullOrWhiteSpace(value)) continue;
+                    long modelHash;
+
                     if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (!long.TryParse(value.Substring(2), NumberStyles.HexNumber, null, out var hexSeed))
+                        if (!long.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out modelHash))
+                            throw new FormatException("Invalid hex model hash");
+                    }
+                    else
+                    {
+                        if (!long.TryParse(value, NumberStyles.HexNumber, null, out modelHash))
+                            throw new FormatException("Invalid hex model hash");
+                    }
+
+                    photo.ModelVersionId = await FetchModelVersionIdAsync(modelHash) ?? 0;
+                    break;
+
+                case "sampler":
+                    photo.Sampler = value;
+                    break;
+
+                case "seed":
+                    if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!long.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out var hexSeed))
                             throw new FormatException("Invalid hex seed value");
                         photo.Seed = hexSeed;
                     }
@@ -212,59 +259,55 @@ public sealed partial class PhotoService : IDisposable
                             throw new FormatException("Invalid decimal seed value");
                         photo.Seed = decimalSeed;
                     }
-
                     break;
+
                 case "size":
-                {
                     var size = value.Split('x', 2);
                     if (size.Length != 2) throw new FormatException("Invalid size format");
+                    
                     if (!int.TryParse(size[0], out var width)) throw new FormatException("Invalid width value");
                     photo.GeneratedWidth = width;
+
                     if (!int.TryParse(size[1], out var height)) throw new FormatException("Invalid height value");
                     photo.GeneratedHeight = height;
                     break;
-                }
-                case "model hash":
-                    if (!string.IsNullOrWhiteSpace(value))
-                    {
-                        long modelHash;
-
-                        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (!long.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out modelHash))
-                                throw new FormatException("Invalid hex model hash");
-                        }
-                        else
-                        {
-                            if (!long.TryParse(value, NumberStyles.HexNumber, null, out modelHash))
-                                throw new FormatException("Invalid hex model hash");
-                        }
-
-                        photo.ModelVersionId = await FetchModelVersionIdAsync(modelHash) ?? 0;
-                    }
+ 
+                case "steps":
+                    if (!int.TryParse(value, out var steps)) throw new FormatException("Invalid steps value");
+                    photo.Steps = steps;
                     break;
-                case "model":
-                    // Ignore.
+
+                case "vae":
+                    photo.Vae = value;
                     break;
+
+                case "vae hash":
+                    vaeHash = value;
+                    break;
+
+                case "variation seed":
+                    if (!long.TryParse(value, out var variationSeed)) throw new FormatException("Invalid variation seed value");
+                    photo.VariationSeed = variationSeed;
+                    break;
+
+                case "variation seed strength":
+                    if (!double.TryParse(value, out var variationSeedStrength)) throw new FormatException("Invalid variation seed strength value");
+                    photo.VariationSeedStrength = variationSeedStrength;
+                    break;
+
                 case "version":
                     photo.Version = value;
                     break;
-                case "civitai resources":
-                    photo.ModelVersionId = ProcessCivitaiResources(value);
-                    break;
-                case "clip skip":
-                    if (!int.TryParse(value, out var clipSkip)) throw new FormatException("Invalid clip skip value");
-                    photo.ClipSkip = clipSkip;
-                    break;
-                case "denoising strength":
-                    if (!double.TryParse(value, out var denoisingStrength))
-                        throw new FormatException("Invalid denoising strength value");
-                    photo.DenoisingStrength = denoisingStrength;
-                    break;
+
                 default:
                     photo.OtherParameters[key] = value;
                     break;
             }
+        }
+
+        if (vaeHash != null && string.IsNullOrWhiteSpace(photo.Vae))
+        {
+            photo.Vae = vaeHash;
         }
     }
 

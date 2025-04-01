@@ -453,6 +453,11 @@
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Grid.Row="0"
@@ -529,10 +534,50 @@
 
                                         <TextBlock Grid.Row="9"
                                                    Grid.Column="0" 
-                                                   Text="Denoising Strength:" />
+                                                   Text="VAE:" />
                                         <TextBox Grid.Row="9" 
                                                  Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.Vae, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
+
+                                        <TextBlock Grid.Row="10"
+                                                   Grid.Column="0" 
+                                                   Text="Denoising Strength:" />
+                                        <TextBox Grid.Row="10" 
+                                                 Grid.Column="1" 
                                                  Text="{x:Bind FocusedItem.DenoisingStrength, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
+
+                                        <TextBlock Grid.Row="11"
+                                                   Grid.Column="0" 
+                                                   Text="Variation Seed:" />
+                                        <TextBox Grid.Row="11" 
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.VariationSeed, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
+
+                                        <TextBlock Grid.Row="12"
+                                                   Grid.Column="0" 
+                                                   Text="Variation Seed Strength:" />
+                                        <TextBox Grid.Row="12" 
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.VariationSeedStrength, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
+
+                                        <TextBlock Grid.Row="13"
+                                                   Grid.Column="0" 
+                                                   Text="Hires Upscale:" />
+                                        <TextBox Grid.Row="13" 
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.HiresUpscale, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
+
+                                        <TextBlock Grid.Row="14"
+                                                   Grid.Column="0" 
+                                                   Text="Hires Upscaler:" />
+                                        <TextBox Grid.Row="14" 
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.HiresUpscaler, Mode=OneWay}"
                                                  Style="{StaticResource SelectableTextStyle}" />
                                     </Grid>
                                 </Expander>
@@ -576,28 +621,9 @@
                                         <TextBlock Text="Raw" 
                                                    Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     </Expander.Header>
-                                    
-                                    <Grid ColumnSpacing="12" 
-                                          RowSpacing="8"
-                                          Margin="0,8,0,0">
-                                        
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                    
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
 
-                                        <TextBlock Grid.Row="0" 
-                                                   Grid.Column="0" 
-                                                   Text="Raw:" />
-                                        <TextBox Grid.Row="0" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.Raw, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-                                    </Grid>
+                                    <TextBox Text="{x:Bind FocusedItem.Raw, Mode=OneWay}"
+                                             Style="{StaticResource SelectableTextStyle}" />
                                 </Expander>
 
                                 <StackPanel Orientation="Horizontal" 
