@@ -66,6 +66,131 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
             SwitchToSinglePhotoView();
             UpdateSinglePhotoView();
+            UpdateParameterExpanders();
+        }
+    }
+
+    private void UpdateParameterExpanders()
+    {
+        if (FocusedItem == null) return;
+
+        UpdateGenerationParametersExpander();
+        UpdateHiresParametersExpander();
+        UpdateAdditionalParametersExpander();
+    }
+
+    private void AddRow(Grid grid, int row, string displayName, string value)
+    {
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var textBlock = new TextBlock
+        {
+            Text = displayName + ":",
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        Grid.SetRow(textBlock, row);
+        Grid.SetColumn(textBlock, 0);
+        grid.Children.Add(textBlock);
+
+        var textBoxStyle = PropertiesPane.Resources["SelectableTextStyle"] as Style;
+        var textBox = new TextBox
+        {
+            Text = value,
+            Style = textBoxStyle,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        Grid.SetRow(textBox, row);
+        Grid.SetColumn(textBox, 1);
+        grid.Children.Add(textBox);
+    }
+
+    private void UpdateGenerationParametersExpander()
+    {
+        GenerationParametersGrid.RowDefinitions.Clear();
+        GenerationParametersGrid.Children.Clear();
+
+        var generationProperties = new List<(string DisplayName, string PropertyName)>
+        {
+            ("Model", nameof(FocusedItem.ModelName)),
+            ("Model Version", nameof(FocusedItem.ModelVersionName)),
+            ("Generated Resolution", nameof(FocusedItem.GeneratedResolution)),
+            ("Steps", nameof(FocusedItem.Steps)),
+            ("CFG scale", nameof(FocusedItem.CfgScale)),
+            ("Sampler", nameof(FocusedItem.Sampler)),
+            ("Seed", nameof(FocusedItem.Seed)),
+            ("Version", nameof(FocusedItem.Version)),
+            ("Clip Skip", nameof(FocusedItem.ClipSkip)),
+            ("VAE", nameof(FocusedItem.Vae)),
+            ("Denoising Strength", nameof(FocusedItem.DenoisingStrength)),
+            ("Variation Seed", nameof(FocusedItem.VariationSeed)),
+            ("Variation Seed Strength", nameof(FocusedItem.VariationSeedStrength)),
+            ("Schedule Type", nameof(FocusedItem.ScheduleType)),
+            ("Remix Of", nameof(FocusedItem.RemixOf))
+        };
+
+        var row = 0;
+
+        foreach (var (displayName, propertyName) in generationProperties)
+        {
+            var propertyInfo = typeof(PhotoItem).GetProperty(propertyName);
+            if (propertyInfo == null) continue;
+
+            var value = propertyInfo.GetValue(FocusedItem)?.ToString() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(value)) continue;
+
+            AddRow(GenerationParametersGrid, row, displayName, value);
+
+            row++;
+        }
+    }
+
+    private void UpdateHiresParametersExpander()
+    {
+        HiresParametersGrid.RowDefinitions.Clear();
+        HiresParametersGrid.Children.Clear();
+
+        var row = 0;
+
+        if (!string.IsNullOrWhiteSpace(FocusedItem.HiresSteps))
+        {
+            AddRow(HiresParametersGrid, row, "Steps", FocusedItem.HiresSteps);
+            row++;
+        }
+
+        if (!string.IsNullOrWhiteSpace(FocusedItem.HiresUpscale))
+        {
+            AddRow(HiresParametersGrid, row, "Upscale", FocusedItem.HiresUpscale);
+            row++;
+        }
+
+        if (!string.IsNullOrWhiteSpace(FocusedItem.HiresUpscaler))
+        {
+            AddRow(HiresParametersGrid, row, "Upscaler", FocusedItem.HiresUpscaler);
+            row++;
+        }
+
+        HiresParametersExpander.Visibility = row == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void UpdateAdditionalParametersExpander()
+    {
+        AdditionalParametersGrid.RowDefinitions.Clear();
+        AdditionalParametersGrid.Children.Clear();
+
+        if (FocusedItem.ParametersList.Any())
+        {
+            var row = 0;
+
+            foreach (var (key, value) in FocusedItem.ParametersList)
+            {
+                AddRow(AdditionalParametersGrid, row, key, value);
+                row++;
+            }
+            AdditionalParametersExpander.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            AdditionalParametersExpander.Visibility = Visibility.Collapsed;
         }
     }
 

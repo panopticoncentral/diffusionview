@@ -302,7 +302,8 @@
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Stretch"/>
 
-                    <Grid Grid.Column="2" 
+                    <Grid x:Name="PropertiesPane"
+                          Grid.Column="2" 
                           Margin="12">
 
                         <Grid.Resources>
@@ -427,208 +428,59 @@
                                 <Expander IsExpanded="True"
                                           HorizontalAlignment="Stretch"
                                           HorizontalContentAlignment="Stretch">
-
                                     <Expander.Header>
                                         <TextBlock Text="Generation Parameters" 
                                                    Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     </Expander.Header>
 
-                                    <Grid ColumnSpacing="12" 
+                                    <Grid x:Name="GenerationParametersGrid" 
+                                          ColumnSpacing="12" 
                                           RowSpacing="8"
                                           Margin="0,8,0,0">
-
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-
-                                        <TextBlock Grid.Row="0"
-                                                   Grid.Column="0"
-                                                   Text="Model:" />
-                                        <TextBox Grid.Row="0" 
-                                                 Grid.Column="1"
-                                                 Text="{x:Bind FocusedItem.ModelName, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="1"
-                                                   Grid.Column="0"
-                                                   Text="Model Version:" />
-                                        <TextBox Grid.Row="1" 
-                                                 Grid.Column="1"
-                                                 Text="{x:Bind FocusedItem.ModelVersionName, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="2" 
-                                                   Grid.Column="0" 
-                                                   Text="Generated Resolution:" />
-                                        <TextBox Grid.Row="2" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.GeneratedResolution, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="3" 
-                                                   Grid.Column="0" 
-                                                   Text="Steps:" />
-                                        <TextBox Grid.Row="3" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.Steps, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="4"
-                                                   Grid.Column="0" 
-                                                   Text="CFG scale:" />
-                                        <TextBox Grid.Row="4" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.CfgScale, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="5"
-                                                   Grid.Column="0"
-                                                   Text="Sampler:" />
-                                        <TextBox Grid.Row="5" 
-                                                 Grid.Column="1"
-                                                 Text="{x:Bind FocusedItem.Sampler, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="6" 
-                                                   Grid.Column="0"
-                                                   Text="Seed:" />
-                                        <TextBox Grid.Row="6"
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.Seed, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="7"
-                                                   Grid.Column="0" 
-                                                   Text="Version:" />
-                                        <TextBox Grid.Row="7" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.Version, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="8"
-                                                   Grid.Column="0" 
-                                                   Text="Clip Skip:" />
-                                        <TextBox Grid.Row="8" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.ClipSkip, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="9"
-                                                   Grid.Column="0" 
-                                                   Text="VAE:" />
-                                        <TextBox Grid.Row="9" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.Vae, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="10"
-                                                   Grid.Column="0" 
-                                                   Text="Denoising Strength:" />
-                                        <TextBox Grid.Row="10" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.DenoisingStrength, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="11"
-                                                   Grid.Column="0" 
-                                                   Text="Variation Seed:" />
-                                        <TextBox Grid.Row="11" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.VariationSeed, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="12"
-                                                   Grid.Column="0" 
-                                                   Text="Variation Seed Strength:" />
-                                        <TextBox Grid.Row="12" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.VariationSeedStrength, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="13"
-                                                   Grid.Column="0" 
-                                                   Text="Hires Upscale:" />
-                                        <TextBox Grid.Row="13" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.HiresUpscale, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="14"
-                                                   Grid.Column="0" 
-                                                   Text="Hires Upscaler:" />
-                                        <TextBox Grid.Row="14" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.HiresUpscaler, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="15"
-                                                   Grid.Column="0" 
-                                                   Text="Schedule Type:" />
-                                        <TextBox Grid.Row="15" 
-                                                 Grid.Column="1" 
-                                                 Text="{x:Bind FocusedItem.ScheduleType, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
-
-                                        <TextBlock Grid.Row="16"
-                                                   Grid.Column="0" 
-                                                   Text="Remix Of:" />
-                                        <TextBox Grid.Row="16" 
-                                                 Grid.Column="1"
-                                                 Text="{x:Bind FocusedItem.RemixOf, Mode=OneWay}"
-                                                 Style="{StaticResource SelectableTextStyle}" />
                                     </Grid>
                                 </Expander>
 
-                                <Expander IsExpanded="True"
+                                <Expander x:Name="HiresParametersExpander"
+                                          IsExpanded="True"
                                           HorizontalAlignment="Stretch"
                                           HorizontalContentAlignment="Stretch">
+                                    <Expander.Header>
+                                        <TextBlock Text="Hires Parameters" 
+                                                   Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                    </Expander.Header>
 
+                                    <Grid x:Name="HiresParametersGrid" 
+                                          ColumnSpacing="12" 
+                                          RowSpacing="8"
+                                          Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                    </Grid>
+                                </Expander>
+
+                                <Expander x:Name="AdditionalParametersExpander"
+                                          IsExpanded="True"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch">
                                     <Expander.Header>
                                         <TextBlock Text="Additional Parameters" 
                                                    Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     </Expander.Header>
-                                    
-                                    <ItemsRepeater ItemsSource="{x:Bind FocusedItem.ParametersList, Mode=OneWay}"
-                                                   Margin="0,8,0,0">
-                                        <ItemsRepeater.ItemTemplate>
-                                            <DataTemplate x:DataType="local:KeyValuePair">
-                                                <Grid ColumnSpacing="12" 
-                                                      Margin="0,4">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
-    
-                                                    <TextBlock Grid.Column="0" 
-                                                               Text="{x:Bind Key}" />
-                                                    <TextBox Grid.Column="1"
-                                                             Text="{x:Bind Value}"
-                                                             Style="{StaticResource SelectableTextStyle}" />
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsRepeater.ItemTemplate>
-                                    </ItemsRepeater>
+                                    <Grid x:Name="AdditionalParametersGrid" 
+                                          ColumnSpacing="12" 
+                                          RowSpacing="8"
+                                          Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                    </Grid>
                                 </Expander>
 
                                 <Expander IsExpanded="True"

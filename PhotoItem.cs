@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
+using System.Globalization;
 using DiffusionView.Database;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -23,25 +24,26 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
 
     private string _prompt = photo.Prompt ?? "No prompt available";
     private string _negativePrompt = photo.NegativePrompt ?? "No negative prompt available";
-    private string _steps = photo.Steps != 0 ? photo.Steps.ToString() : "Unknown";
+    private string _steps = photo.Steps != 0 ? photo.Steps.ToString() : string.Empty;
     private int _generatedWidth = photo.GeneratedWidth;
     private int _generatedHeight = photo.GeneratedHeight;
     private string _generatedResolution = $"{photo.GeneratedWidth} x {photo.GeneratedHeight}";
-    private string _sampler = photo.Sampler ?? "Unknown";
-    private string _cfgScale = photo.CfgScale != 0 ? photo.CfgScale.ToString("F1") : "Unknown";
-    private string _seed = photo.Seed != 0 ? photo.Seed.ToString() : "Unknown";
+    private string _sampler = photo.Sampler ?? string.Empty;
+    private string _cfgScale = photo.CfgScale != 0 ? photo.CfgScale.ToString("F1") : string.Empty;
+    private string _seed = photo.Seed != 0 ? photo.Seed.ToString() : string.Empty;
     private string _modelName = photo.ModelName;
     private string _modelVersionName = photo.ModelVersionName;
-    private int _clipSkip = photo.ClipSkip;
-    private double _denoisingStrength = photo.DenoisingStrength;
-    private long _variationSeed = photo.VariationSeed;
-    private double _variationSeedStrength = photo.VariationSeedStrength;
-    private double _hiresUpscale = photo.HiresUpscale;
-    private string _hiresUpscaler = photo.HiresUpscaler ?? "";
-    private string _vae = photo.Vae ?? "";
-    private string _scheduleType = photo.ScheduleType ?? "";
-    private string _remixOf = photo.RemixOfId == 0 ? "" : $"https://civitai.com/images/{photo.RemixOfId}"; 
-    private string _version = photo.Version ?? "Unknown";
+    private string _clipSkip = photo.ClipSkip != 0 ? photo.ClipSkip.ToString() : string.Empty;
+    private string _denoisingStrength = photo.DenoisingStrength != 0 ? photo.DenoisingStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
+    private string _variationSeed = photo.VariationSeed != 0 ? photo.VariationSeed.ToString() : string.Empty;
+    private string _hiresSteps = photo.HiresSteps != 0 ? photo.HiresSteps.ToString() : string.Empty;
+    private string _variationSeedStrength = photo.VariationSeedStrength != 0 ? photo.VariationSeedStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
+    private string _hiresUpscale = photo.HiresUpscale != 0 ? photo.HiresUpscale.ToString(CultureInfo.InvariantCulture) : string.Empty;
+    private string _hiresUpscaler = photo.HiresUpscaler ?? string.Empty;
+    private string _vae = photo.Vae ?? string.Empty;
+    private string _scheduleType = photo.ScheduleType ?? string.Empty;
+    private string _remixOf = photo.RemixOfId != 0 ? $"https://civitai.com/images/{photo.RemixOfId}" : string.Empty; 
+    private string _version = photo.Version ?? string.Empty;
     private Dictionary<string, string> _otherParameters = new(photo.OtherParameters);
     private string _raw = photo.Raw ?? "No raw data available";
 
@@ -183,31 +185,31 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
         set => SetProperty(ref _modelVersionName, value);
     }
 
-    public int ClipSkip
+    public string ClipSkip
     {
         get => _clipSkip;
         set => SetProperty(ref _clipSkip, value);
     }
 
-    public double DenoisingStrength
+    public string DenoisingStrength
     {
         get => _denoisingStrength;
         set => SetProperty(ref _denoisingStrength, value);
     }
 
-    public long VariationSeed
+    public string VariationSeed
     {
         get => _variationSeed;
         set => SetProperty(ref _variationSeed, value);
     }
 
-    public double VariationSeedStrength
+    public string VariationSeedStrength
     {
         get => _variationSeedStrength;
         set => SetProperty(ref _variationSeedStrength, value);
     }
 
-    public double HiresUpscale
+    public string HiresUpscale
     {
         get => _hiresUpscale;
         set => SetProperty(ref _hiresUpscale, value);
@@ -217,6 +219,12 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     {
         get => _hiresUpscaler;
         set => SetProperty(ref _hiresUpscaler, value);
+    }
+
+    public string HiresSteps
+    {
+        get => _hiresSteps;
+        set => SetProperty(ref _hiresSteps, value);
     }
 
     public string Vae

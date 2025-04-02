@@ -212,6 +212,11 @@ public sealed partial class PhotoService : IDisposable
                     photo.DenoisingStrength = denoisingStrength;
                     break;
 
+                case "hires steps":
+                    if (!int.TryParse(value, out var hiresSteps)) throw new FormatException("Invalid hires steps value");
+                    photo.HiresSteps = hiresSteps;
+                    break;
+
                 case "hires upscale":
                     if (!double.TryParse(value, out var hiresUpscale))
                         throw new FormatException("Invalid hires upscale value");
