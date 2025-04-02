@@ -458,6 +458,8 @@
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Grid.Row="0"
@@ -578,6 +580,22 @@
                                         <TextBox Grid.Row="14" 
                                                  Grid.Column="1" 
                                                  Text="{x:Bind FocusedItem.HiresUpscaler, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
+
+                                        <TextBlock Grid.Row="15"
+                                                   Grid.Column="0" 
+                                                   Text="Schedule Type:" />
+                                        <TextBox Grid.Row="15" 
+                                                 Grid.Column="1" 
+                                                 Text="{x:Bind FocusedItem.ScheduleType, Mode=OneWay}"
+                                                 Style="{StaticResource SelectableTextStyle}" />
+
+                                        <TextBlock Grid.Row="16"
+                                                   Grid.Column="0" 
+                                                   Text="Remix Of:" />
+                                        <TextBox Grid.Row="16" 
+                                                 Grid.Column="1"
+                                                 Text="{x:Bind FocusedItem.RemixOf, Mode=OneWay}"
                                                  Style="{StaticResource SelectableTextStyle}" />
                                     </Grid>
                                 </Expander>

@@ -39,6 +39,8 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private double _hiresUpscale = photo.HiresUpscale;
     private string _hiresUpscaler = photo.HiresUpscaler ?? "";
     private string _vae = photo.Vae ?? "";
+    private string _scheduleType = photo.ScheduleType ?? "";
+    private string _remixOf = photo.RemixOfId == 0 ? "" : $"https://civitai.com/images/{photo.RemixOfId}"; 
     private string _version = photo.Version ?? "Unknown";
     private Dictionary<string, string> _otherParameters = new(photo.OtherParameters);
     private string _raw = photo.Raw ?? "No raw data available";
@@ -221,6 +223,18 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     {
         get => _vae;
         set => SetProperty(ref _vae, value);
+    }
+
+    public string RemixOf
+    {
+        get => _remixOf;
+        set => SetProperty(ref _remixOf, value);
+    }
+
+    public string ScheduleType
+    {
+        get => _scheduleType;
+        set => SetProperty(ref _scheduleType, value);
     }
 
     public string Version

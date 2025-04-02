@@ -7,17 +7,14 @@ using System.Threading.Tasks;
 using System.Threading;
 using System;
 using Windows.Storage.Search;
-using Windows.Storage.Streams;
 using Windows.Storage;
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Linq.Expressions;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using DiffusionView.Database;
 using System.Threading.Channels;
-using Windows.Graphics.Imaging;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Png;
 using Directory = System.IO.Directory;
@@ -180,7 +177,6 @@ public sealed partial class PhotoService : IDisposable
             return; // No parameter data found, but we have prompts at least
 
         var otherParameters = new LineParser(lines[currentLine].Trim());
-        string vaeHash = null;
 
         while (otherParameters.MorePairs)
         {
@@ -188,6 +184,10 @@ public sealed partial class PhotoService : IDisposable
 
             switch (key)
             {
+                case "civitai metadata":
+                    ProcessCivitaiMetadata(value, photo);
+                    break;
+
                 case "civitai resources":
                     photo.ModelVersionId = ProcessCivitaiResources(value);
                     break;
@@ -207,12 +207,14 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "denoising strength":
-                    if (!double.TryParse(value, out var denoisingStrength)) throw new FormatException("Invalid denoising strength value");
+                    if (!double.TryParse(value, out var denoisingStrength))
+                        throw new FormatException("Invalid denoising strength value");
                     photo.DenoisingStrength = denoisingStrength;
                     break;
 
                 case "hires upscale":
-                    if (!double.TryParse(value, out var hiresUpscale)) throw new FormatException("Invalid hires upscale value");
+                    if (!double.TryParse(value, out var hiresUpscale))
+                        throw new FormatException("Invalid hires upscale value");
                     photo.HiresUpscale = hiresUpscale;
                     break;
 
@@ -226,18 +228,9 @@ public sealed partial class PhotoService : IDisposable
 
                 case "model hash":
                     if (string.IsNullOrWhiteSpace(value)) continue;
-                    long modelHash;
 
-                    if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (!long.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out modelHash))
-                            throw new FormatException("Invalid hex model hash");
-                    }
-                    else
-                    {
-                        if (!long.TryParse(value, NumberStyles.HexNumber, null, out modelHash))
-                            throw new FormatException("Invalid hex model hash");
-                    }
+                    if (!long.TryParse(value, NumberStyles.HexNumber, null, out var modelHash))
+                        throw new FormatException("Invalid hex model hash");
 
                     photo.ModelVersionId = await FetchModelVersionIdAsync(modelHash) ?? 0;
                     break;
@@ -246,32 +239,27 @@ public sealed partial class PhotoService : IDisposable
                     photo.Sampler = value;
                     break;
 
+                case "schedule type":
+                    photo.ScheduleType = value;
+                    break;
+
                 case "seed":
-                    if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (!long.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out var hexSeed))
-                            throw new FormatException("Invalid hex seed value");
-                        photo.Seed = hexSeed;
-                    }
-                    else
-                    {
-                        if (!long.TryParse(value, out var decimalSeed))
-                            throw new FormatException("Invalid decimal seed value");
-                        photo.Seed = decimalSeed;
-                    }
+                    if (!long.TryParse(value, out var decimalSeed))
+                        throw new FormatException("Invalid decimal seed value");
+                    photo.Seed = decimalSeed;
                     break;
 
                 case "size":
                     var size = value.Split('x', 2);
                     if (size.Length != 2) throw new FormatException("Invalid size format");
-                    
+
                     if (!int.TryParse(size[0], out var width)) throw new FormatException("Invalid width value");
                     photo.GeneratedWidth = width;
 
                     if (!int.TryParse(size[1], out var height)) throw new FormatException("Invalid height value");
                     photo.GeneratedHeight = height;
                     break;
- 
+
                 case "steps":
                     if (!int.TryParse(value, out var steps)) throw new FormatException("Invalid steps value");
                     photo.Steps = steps;
@@ -282,16 +270,18 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "vae hash":
-                    vaeHash = value;
+                    // Ignore
                     break;
 
                 case "variation seed":
-                    if (!long.TryParse(value, out var variationSeed)) throw new FormatException("Invalid variation seed value");
+                    if (!long.TryParse(value, out var variationSeed))
+                        throw new FormatException("Invalid variation seed value");
                     photo.VariationSeed = variationSeed;
                     break;
 
                 case "variation seed strength":
-                    if (!double.TryParse(value, out var variationSeedStrength)) throw new FormatException("Invalid variation seed strength value");
+                    if (!double.TryParse(value, out var variationSeedStrength))
+                        throw new FormatException("Invalid variation seed strength value");
                     photo.VariationSeedStrength = variationSeedStrength;
                     break;
 
@@ -303,11 +293,6 @@ public sealed partial class PhotoService : IDisposable
                     photo.OtherParameters[key] = value;
                     break;
             }
-        }
-
-        if (vaeHash != null && string.IsNullOrWhiteSpace(photo.Vae))
-        {
-            photo.Vae = vaeHash;
         }
     }
 
@@ -326,6 +311,25 @@ public sealed partial class PhotoService : IDisposable
         }
 
         return 0;
+    }
+
+    private static void ProcessCivitaiMetadata(string value, Photo photo)
+    {
+        var metadata = JsonSerializer.Deserialize<JsonElement>(value);
+
+        // Loop through the properties and handle each one
+        foreach (var property in metadata.EnumerateObject())
+        {
+            switch (property.Name)
+            {
+                case "remixOfId":
+                    photo.RemixOfId = property.Value.GetInt64();
+                    break;
+                default:
+                    photo.OtherParameters[$"civitai metadata: {property.Name}"] = property.Value.ToString();
+                    break;
+            }
+        }
     }
 
     private static async Task<long?> FetchModelVersionIdAsync(long modelHash)

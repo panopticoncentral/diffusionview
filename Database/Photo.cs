@@ -70,6 +70,11 @@ public sealed class Photo
     [MaxLength(64)] 
     public string HiresUpscaler { get; set; }
 
+    public long RemixOfId { get; set; }
+
+    [MaxLength(64)]
+    public string ScheduleType { get; set; }
+
 
     [MaxLength(64)]
     public string Version { get; set; }
