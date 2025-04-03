@@ -27,22 +27,13 @@ public sealed partial class PhotoDatabase : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Folder>()
-            .HasIndex(f => f.Path)
-            .IsUnique();
+        var serializerOptions = new JsonSerializerOptions();
 
         modelBuilder.Entity<Photo>()
-            .HasIndex(p => p.Path)
-            .IsUnique();
-
-        modelBuilder.Entity<Photo>()
-            .HasIndex(p => p.ModelVersionId);
-
-        modelBuilder.Entity<Photo>()
-            .Property(e => e.OtherParameters)
+            .Property(p => p.OtherParameters)
             .HasConversion(
-                v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
-                v => JsonSerializer.Deserialize<Dictionary<string, string>>(v, (JsonSerializerOptions)null)
+                v => JsonSerializer.Serialize(v, serializerOptions),
+                v => JsonSerializer.Deserialize<Dictionary<string, string>>(v, serializerOptions)
             );
     }
 }

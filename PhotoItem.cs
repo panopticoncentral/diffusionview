@@ -31,8 +31,8 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _sampler = photo.Sampler ?? string.Empty;
     private string _cfgScale = photo.CfgScale != 0 ? photo.CfgScale.ToString("F1") : string.Empty;
     private string _seed = photo.Seed != 0 ? photo.Seed.ToString() : string.Empty;
-    private string _modelName = photo.ModelName;
-    private string _modelVersionName = photo.ModelVersionName;
+    private string _modelName = photo.Model?.ModelName ?? string.Empty;
+    private string _modelVersionName = photo.Model?.ModelVersionName ?? string.Empty;
     private string _clipSkip = photo.ClipSkip != 0 ? photo.ClipSkip.ToString() : string.Empty;
     private string _denoisingStrength = photo.DenoisingStrength != 0 ? photo.DenoisingStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _variationSeed = photo.VariationSeed != 0 ? photo.VariationSeed.ToString() : string.Empty;
@@ -54,7 +54,6 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _version = photo.Version ?? string.Empty;
     private Dictionary<string, string> _otherParameters = new(photo.OtherParameters);
     private string _raw = photo.Raw ?? "No raw data available";
-
     public bool IsSelected
     {
         get => _isSelected;

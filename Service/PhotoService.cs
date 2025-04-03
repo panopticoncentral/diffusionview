@@ -20,6 +20,7 @@ using MetadataExtractor.Formats.Png;
 using Directory = System.IO.Directory;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Util;
+using Microsoft.UI.Xaml.Shapes;
 
 namespace DiffusionView.Service;
 
@@ -59,7 +60,7 @@ public sealed partial class PhotoService : IDisposable
      * File watching
      */
 
-    private static async Task ExtractPngMetadata(Stream stream, Photo photo)
+    private async Task ExtractPngMetadata(PhotoDatabase db, Stream stream, Photo photo)
     {
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
@@ -78,10 +79,10 @@ public sealed partial class PhotoService : IDisposable
         if (textChunks.Count != 1) throw new FormatException("Expected exactly one textual data chunk");
 
         var raw = textChunks.First();
-        await ParseStableDiffusionMetadata(raw, photo);
+        await ParseStableDiffusionMetadata(db, raw, photo);
     }
 
-    private static async Task ExtractJpegMetadata(Stream stream, Photo photo)
+    private async Task ExtractJpegMetadata(PhotoDatabase db, Stream stream, Photo photo)
     {
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
@@ -109,7 +110,7 @@ public sealed partial class PhotoService : IDisposable
 
         if (string.IsNullOrWhiteSpace(userComment)) throw new FormatException("Empty UserComment tag in Exif SubIFD");
 
-        await ParseStableDiffusionMetadata(userComment, photo);
+        await ParseStableDiffusionMetadata(db, userComment, photo);
     }
 
     private static string CleanUserComment(string comment)
@@ -122,7 +123,7 @@ public sealed partial class PhotoService : IDisposable
         return comment;
     }
 
-    private static async Task ParseStableDiffusionMetadata(string raw, Photo photo)
+    private async Task ParseStableDiffusionMetadata(PhotoDatabase db, string raw, Photo photo)
     {
         photo.Raw = raw;
 
@@ -226,7 +227,7 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "civitai resources":
-                    photo.ModelVersionId = ProcessCivitaiResources(value);
+                    photo.Model = await ProcessCivitaiResources(db, value);
                     break;
 
                 case "clip skip":
@@ -274,7 +275,7 @@ public sealed partial class PhotoService : IDisposable
                     if (!long.TryParse(value, NumberStyles.HexNumber, null, out var modelHash))
                         throw new FormatException("Invalid hex model hash");
 
-                    photo.ModelVersionId = await FetchModelVersionIdAsync(modelHash) ?? 0;
+                    photo.Model = await FetchModelInformationByHashAsync(db, modelHash);
                     break;
 
                 case "sampler":
@@ -338,7 +339,7 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private static long ProcessCivitaiResources(string value)
+    private async Task<Model> ProcessCivitaiResources(PhotoDatabase db, string value)
     {
         var elements = JsonSerializer.Deserialize<List<JsonElement>>(value);
 
@@ -348,11 +349,11 @@ public sealed partial class PhotoService : IDisposable
 
             if (type == "checkpoint")
             {
-                return element.GetProperty("modelVersionId").GetInt64();
+                return await FetchModelInformationByVersionIdAsync(db, element.GetProperty("modelVersionId").GetInt32());
             }
         }
 
-        return 0;
+        return await FetchModelInformationByVersionIdAsync(db, 0);
     }
 
     private static void ProcessCivitaiMetadata(string value, Photo photo)
@@ -374,49 +375,60 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private static async Task<long?> FetchModelVersionIdAsync(long modelHash)
+    private async Task<Model> GetOrCreateModel(PhotoDatabase db, long modelVersionId, string modelVersionName, long modelId, string modelName)
     {
-        var url = $"https://civitai.com/api/v1/model-versions/by-hash/{modelHash:X10}";
+        var model = await db.Models.FirstOrDefaultAsync(m => m.ModelVersionId == modelVersionId);
+        if (model != null) return model;
+        model = new Model
+        {
+            ModelVersionId = modelVersionId,
+            ModelVersionName = modelVersionName,
+            ModelId = modelId,
+            ModelName = modelName
+        };
+        db.Models.Add(model);
+        ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
+        await db.SaveChangesAsync();
+
+        return model;
+    }
+
+    private async Task<Model> FetchModelInformationAsync(PhotoDatabase db, string url)
+    {
         var client = new HttpClient();
         var response = await client.GetAsync(url);
-        if (!response.IsSuccessStatusCode) return null;
-
-        try
+        if (response.IsSuccessStatusCode)
         {
-            var json = await response.Content.ReadAsStringAsync();
-            var document = JsonDocument.Parse(json);
+            try
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var document = JsonDocument.Parse(json);
 
-            return document.RootElement.GetProperty("id").GetInt64();
+                var modelVersionId = document.RootElement.GetProperty("id").GetInt64();
+                var modelVersionName = document.RootElement.GetProperty("name").GetString();
+                var modelName = document.RootElement.GetProperty("model").GetProperty("name").GetString();
+                var modelId = document.RootElement.GetProperty("modelId").GetInt64();
+
+                return await GetOrCreateModel(db, modelVersionId, modelVersionName, modelId, modelName);
+            }
+            catch (Exception)
+            {
+                // Ignore error
+            }
         }
-        catch (Exception)
-        {
-            return null;
-        }
+
+        return await GetOrCreateModel(db, 0, "<Unknown>", 0, "<Unknown>");
+    }
+
+    private async Task<Model> FetchModelInformationByHashAsync(PhotoDatabase db, long modelHash)
+    {
+        return await FetchModelInformationAsync(db, $"https://civitai.com/api/v1/model-versions/by-hash/{modelHash:X10}");
     }
 
 
-    private static async Task<Model> FetchModelInformationAsync(Photo photo)
+    private async Task<Model> FetchModelInformationByVersionIdAsync(PhotoDatabase db, int modelVersionId)
     {
-        var url = $"https://civitai.com/api/v1/model-versions/{photo.ModelVersionId}";
-        var client = new HttpClient();
-        var response = await client.GetAsync(url);
-        if (!response.IsSuccessStatusCode) return new Model { ModelId = 0, ModelName = "<Unknown>", ModelVersionName = "<Unknown>", ModelVersionId = photo.ModelVersionId};
-
-        try
-        {
-            var json = await response.Content.ReadAsStringAsync();
-            var document = JsonDocument.Parse(json);
-
-            var modelVersionName = document.RootElement.GetProperty("name").GetString();
-            var modelName = document.RootElement.GetProperty("model").GetProperty("name").GetString();
-            var modelId = document.RootElement.GetProperty("modelId").GetInt64();
-
-            return new Model {ModelId = modelId, ModelName = modelName, ModelVersionId = photo.ModelVersionId, ModelVersionName = modelVersionName};
-        }
-        catch (Exception)
-        {
-            return null;
-        }
+        return await FetchModelInformationAsync(db, $"https://civitai.com/api/v1/model-versions/{modelVersionId}");
     }
 
     public static async Task LoadScaledImageAsync(StorageFile sourceFile, Photo photo, uint targetHeight)
@@ -493,7 +505,7 @@ public sealed partial class PhotoService : IDisposable
         var props = await file.GetBasicPropertiesAsync();
         var imageProps = await file.Properties.GetImagePropertiesAsync();
 
-        var photo = await db.Photos.FirstOrDefaultAsync(p => p.Path == path);
+        var photo = await db.Photos.Include(p => p.Model).FirstOrDefaultAsync(p => p.Path == path);
         var isNew = photo == null;
 
         if (isNew)
@@ -520,11 +532,11 @@ public sealed partial class PhotoService : IDisposable
             switch (fileType)
             {
                 case FileType.Png:
-                    await ExtractPngMetadata(stream, photo);
+                    await ExtractPngMetadata(db, stream, photo);
                     await LoadScaledImageAsync(file, photo, 400);
                     break;
                 case FileType.Jpeg:
-                    await ExtractJpegMetadata(stream, photo);
+                    await ExtractJpegMetadata(db, stream, photo);
                     await LoadScaledImageAsync(file, photo, 400);
                     break;
                 default:
@@ -540,21 +552,7 @@ public sealed partial class PhotoService : IDisposable
             photo.Raw = $"Metadata extraction failed: {ex.Message}";
         }
 
-        var model = await db.Models.FirstOrDefaultAsync(m => m.ModelVersionId == photo.ModelVersionId);
-        if (model == null)
-        {
-            model = await FetchModelInformationAsync(photo);
-
-            if (model.ModelId != 0)
-            {
-                db.Models.Add(model);
-                ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
-            }
-        }
-
-        photo.ModelId = model.ModelId;
-        photo.ModelName = model.ModelName;
-        photo.ModelVersionName = model.ModelVersionName;
+        photo.Model ??= await FetchModelInformationByVersionIdAsync(db, 0);
 
         if (!isNew)
         {
@@ -569,20 +567,20 @@ public sealed partial class PhotoService : IDisposable
     private async Task FileDeletedAsync(string path)
     {
         await using var db = new PhotoDatabase();
-        var existingPhoto = await db.Photos.FirstOrDefaultAsync(p => p.Path == path);
+        var existingPhoto = await db.Photos
+            .Include(p => p.Model)
+            .ThenInclude(m => m.Photos)
+            .FirstOrDefaultAsync(p => p.Path == path);
         if (existingPhoto == null) return;
 
         db.Photos.Remove(existingPhoto);
         PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(existingPhoto));
 
-        if (!await db.Photos.AnyAsync(p => p.ModelVersionId == existingPhoto.ModelVersionId))
+        var model = existingPhoto.Model;
+        if (model.Photos.Count == 1)
         {
-            var model = await db.Models.FirstOrDefaultAsync(m => m.ModelVersionId == existingPhoto.ModelVersionId);
-            if (model != null)
-            {
-                db.Models.Remove(model);
-                ModelRemoved?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
-            }
+            db.Models.Remove(model);
+            ModelRemoved?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
         }
 
         await db.SaveChangesAsync();
@@ -723,9 +721,9 @@ public sealed partial class PhotoService : IDisposable
             }
         }
 
-        foreach (var model in await db.Models.ToListAsync())
+        foreach (var model in await db.Models.Include(m => m.Photos).ToListAsync())
         {
-            if (!await db.Photos.AnyAsync(p => p.ModelVersionId == model.ModelVersionId))
+            if (model.Photos.Count == 0)
             {
                 db.Models.Remove(model);
             }
@@ -777,23 +775,21 @@ public sealed partial class PhotoService : IDisposable
     public static async Task<List<Photo>> GetPhotosForFolderAsync(string folderPath)
     {
         var db = new PhotoDatabase();
-        var photos = await db.Photos
+        return await db.Photos
             .Where(p => p.Path.StartsWith(folderPath))
+            .Include(p => p.Model)  // Include the related Model entity
             .AsNoTracking()
             .ToListAsync();
-
-        return photos
-            //.Where(p => Path.GetDirectoryName(p.Path) == folderPath)
-            .ToList();
     }
 
     public static async Task<List<Photo>> GetPhotosByModelVersionIdAsync(long modelVersionId)
     {
         var db = new PhotoDatabase();
-        return await db.Photos
-            .Where(p => p.ModelVersionId == modelVersionId)
+        return (await db.Models
+            .Include(m => m.Photos)
             .AsNoTracking()
-            .ToListAsync();
+            .SingleOrDefaultAsync(m => m.ModelVersionId == modelVersionId))
+            .Photos;
     }
 
     /*

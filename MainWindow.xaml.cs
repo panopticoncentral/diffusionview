@@ -690,7 +690,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                          && Path.GetDirectoryName(e.Photo.Path) == folderPath:
                 case SymbolIcon { Symbol: Symbol.Contact }
                     when item.Tag is long modelVersionId
-                         && e.Photo.ModelVersionId == modelVersionId:
+                         && e.Photo.Model.ModelVersionId == modelVersionId:
                 {
                     var photo = new PhotoItem(e.Photo);
                     Photos.Add(photo);
