@@ -77,6 +77,23 @@ public sealed class Photo
     [MaxLength(64)]
     public string ScheduleType { get; set; }
 
+    [MaxLength(64)]
+    public string ADetailerModel { get; set; }
+
+    public double ADetailerConfidence { get; set; }
+
+    public int ADetailerDilateErode { get; set; }
+
+    public int ADetailerMaskBlur { get; set; }
+
+    public double ADetailerDenoisingStrength { get; set; }
+
+    public bool? ADetailerInpaintOnlyMasked { get; set; }
+
+    public int ADetailerInpaintPadding { get; set; }
+
+    [MaxLength(64)]
+    public string ADetailerVersion { get; set; }
 
     [MaxLength(64)]
     public string Version { get; set; }

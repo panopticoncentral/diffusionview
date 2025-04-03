@@ -75,6 +75,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         if (FocusedItem == null) return;
 
         UpdateGenerationParametersExpander();
+        UpdateADetailerExpander();
         UpdateHiresParametersExpander();
         UpdateAdditionalParametersExpander();
     }
@@ -104,11 +105,31 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         grid.Children.Add(textBox);
     }
 
+    private void UpdateParametersExpander(Expander expander, Grid grid, List<(string DisplayName, string PropertyName)> properties)
+    {
+        grid.RowDefinitions.Clear();
+        grid.Children.Clear();
+
+        var row = 0;
+
+        foreach (var (displayName, propertyName) in properties)
+        {
+            var propertyInfo = typeof(PhotoItem).GetProperty(propertyName);
+            if (propertyInfo == null) continue;
+
+            var value = propertyInfo.GetValue(FocusedItem)?.ToString() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(value)) continue;
+
+            AddRow(grid, row, displayName, value);
+
+            row++;
+        }
+
+        expander.Visibility = row == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     private void UpdateGenerationParametersExpander()
     {
-        GenerationParametersGrid.RowDefinitions.Clear();
-        GenerationParametersGrid.Children.Clear();
-
         var generationProperties = new List<(string DisplayName, string PropertyName)>
         {
             ("Model", nameof(FocusedItem.ModelName)),
@@ -128,48 +149,36 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             ("Remix Of", nameof(FocusedItem.RemixOf))
         };
 
-        var row = 0;
+        UpdateParametersExpander(GenerationParametersExpander, GenerationParametersGrid, generationProperties);
+    }
 
-        foreach (var (displayName, propertyName) in generationProperties)
+    private void UpdateADetailerExpander()
+    {
+        var aDetailerProperties = new List<(string DisplayName, string PropertyName)>
         {
-            var propertyInfo = typeof(PhotoItem).GetProperty(propertyName);
-            if (propertyInfo == null) continue;
+            ("Model", nameof(FocusedItem.ADetailerModel)),
+            ("Confidence", nameof(FocusedItem.ADetailerConfidence)),
+            ("Dilate/Erode", nameof(FocusedItem.ADetailerDilateErode)),
+            ("Mask Blur", nameof(FocusedItem.ADetailerMaskBlur)),
+            ("Denoising Strength", nameof(FocusedItem.ADetailerDenoisingStrength)),
+            ("Inpaint Only Masked", nameof(FocusedItem.ADetailerInpaintOnlyMasked)),
+            ("Inpaint Padding", nameof(FocusedItem.ADetailerInpaintPadding)),
+            ("Version", nameof(FocusedItem.ADetailerVersion))
+        };
 
-            var value = propertyInfo.GetValue(FocusedItem)?.ToString() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(value)) continue;
-
-            AddRow(GenerationParametersGrid, row, displayName, value);
-
-            row++;
-        }
+        UpdateParametersExpander(ADetailerParametersExpander, ADetailerParametersGrid, aDetailerProperties);
     }
 
     private void UpdateHiresParametersExpander()
     {
-        HiresParametersGrid.RowDefinitions.Clear();
-        HiresParametersGrid.Children.Clear();
-
-        var row = 0;
-
-        if (!string.IsNullOrWhiteSpace(FocusedItem.HiresSteps))
+        var hiresDetailerProperties = new List<(string DisplayName, string PropertyName)>
         {
-            AddRow(HiresParametersGrid, row, "Steps", FocusedItem.HiresSteps);
-            row++;
-        }
+            ("Steps", nameof(FocusedItem.HiresSteps)),
+            ("Upscale", nameof(FocusedItem.HiresUpscale)),
+            ("Upscaler", nameof(FocusedItem.HiresUpscaler))
+        };
 
-        if (!string.IsNullOrWhiteSpace(FocusedItem.HiresUpscale))
-        {
-            AddRow(HiresParametersGrid, row, "Upscale", FocusedItem.HiresUpscale);
-            row++;
-        }
-
-        if (!string.IsNullOrWhiteSpace(FocusedItem.HiresUpscaler))
-        {
-            AddRow(HiresParametersGrid, row, "Upscaler", FocusedItem.HiresUpscaler);
-            row++;
-        }
-
-        HiresParametersExpander.Visibility = row == 0 ? Visibility.Collapsed : Visibility.Visible;
+        UpdateParametersExpander(HiresParametersExpander, HiresParametersGrid, hiresDetailerProperties);
     }
 
     private void UpdateAdditionalParametersExpander()

@@ -425,7 +425,8 @@
                                     </StackPanel>
                                 </Expander>
 
-                                <Expander IsExpanded="True"
+                                <Expander x:Name="GenerationParametersExpander"
+                                          IsExpanded="True"
                                           HorizontalAlignment="Stretch"
                                           HorizontalContentAlignment="Stretch">
                                     <Expander.Header>
@@ -434,6 +435,26 @@
                                     </Expander.Header>
 
                                     <Grid x:Name="GenerationParametersGrid" 
+                                          ColumnSpacing="12" 
+                                          RowSpacing="8"
+                                          Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                    </Grid>
+                                </Expander>
+
+                                <Expander x:Name="ADetailerParametersExpander"
+                                          IsExpanded="True"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch">
+                                    <Expander.Header>
+                                        <TextBlock Text="ADetailer Parameters" 
+                                                   Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                    </Expander.Header>
+
+                                    <Grid x:Name="ADetailerParametersGrid" 
                                           ColumnSpacing="12" 
                                           RowSpacing="8"
                                           Margin="0,8,0,0">

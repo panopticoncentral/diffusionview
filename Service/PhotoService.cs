@@ -184,6 +184,43 @@ public sealed partial class PhotoService : IDisposable
 
             switch (key)
             {
+                case "adetailer model":
+                    photo.ADetailerModel = value;
+                    break;
+
+                case "adetailer confidence":
+                    if (double.TryParse(value, out var confidence))
+                        photo.ADetailerConfidence = confidence;
+                    break;
+
+                case "adetailer dilate/erode":
+                    if (int.TryParse(value, out var dilateErode))
+                        photo.ADetailerDilateErode = dilateErode;
+                    break;
+
+                case "adetailer mask blur":
+                    if (int.TryParse(value, out var maskBlur))
+                        photo.ADetailerMaskBlur = maskBlur;
+                    break;
+
+                case "adetailer denoising strength":
+                    if (double.TryParse(value, out var detailerDenoisingStrength))
+                        photo.ADetailerDenoisingStrength = detailerDenoisingStrength;
+                    break;
+
+                case "adetailer inpaint only masked":
+                    photo.ADetailerInpaintOnlyMasked = value.Equals("True", StringComparison.OrdinalIgnoreCase);
+                    break;
+
+                case "adetailer inpaint padding":
+                    if (int.TryParse(value, out var inpaintPadding))
+                        photo.ADetailerInpaintPadding = inpaintPadding;
+                    break;
+
+                case "adetailer version":
+                    photo.ADetailerVersion = value;
+                    break;
+
                 case "civitai metadata":
                     ProcessCivitaiMetadata(value, photo);
                     break;

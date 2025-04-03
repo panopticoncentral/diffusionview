@@ -42,7 +42,15 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _hiresUpscaler = photo.HiresUpscaler ?? string.Empty;
     private string _vae = photo.Vae ?? string.Empty;
     private string _scheduleType = photo.ScheduleType ?? string.Empty;
-    private string _remixOf = photo.RemixOfId != 0 ? $"https://civitai.com/images/{photo.RemixOfId}" : string.Empty; 
+    private string _remixOf = photo.RemixOfId != 0 ? $"https://civitai.com/images/{photo.RemixOfId}" : string.Empty;
+    private string _aDetailerModel = photo.ADetailerModel ?? string.Empty;
+    private string _aDetailerConfidence = photo.ADetailerConfidence != 0 ? photo.ADetailerConfidence.ToString(CultureInfo.InvariantCulture) : string.Empty;
+    private string _aDetailerDilateErode = photo.ADetailerDilateErode != 0 ? photo.ADetailerDilateErode.ToString() : string.Empty;
+    private string _aDetailerMaskBlur = photo.ADetailerMaskBlur != 0 ? photo.ADetailerMaskBlur.ToString() : string.Empty;
+    private string _aDetailerDenoisingStrength = photo.ADetailerDenoisingStrength != 0 ? photo.ADetailerDenoisingStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
+    private string _aDetailerInpaintOnlyMasked = photo.ADetailerInpaintOnlyMasked != null ? photo.ADetailerInpaintOnlyMasked.Value ? "True" : "False" : string.Empty;
+    private string _aDetailerInpaintPadding = photo.ADetailerInpaintPadding != 0 ? photo.ADetailerInpaintPadding.ToString() : string.Empty;
+    private string _aDetailerVersion = photo.ADetailerVersion ?? string.Empty;
     private string _version = photo.Version ?? string.Empty;
     private Dictionary<string, string> _otherParameters = new(photo.OtherParameters);
     private string _raw = photo.Raw ?? "No raw data available";
@@ -243,6 +251,54 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     {
         get => _scheduleType;
         set => SetProperty(ref _scheduleType, value);
+    }
+
+    public string ADetailerModel
+    {
+        get => _aDetailerModel;
+        set => SetProperty(ref _aDetailerModel, value);
+    }
+
+    public string ADetailerConfidence
+    {
+        get => _aDetailerConfidence;
+        set => SetProperty(ref _aDetailerConfidence, value);
+    }
+
+    public string ADetailerDilateErode
+    {
+        get => _aDetailerDilateErode;
+        set => SetProperty(ref _aDetailerDilateErode, value);
+    }
+
+    public string ADetailerMaskBlur
+    {
+        get => _aDetailerMaskBlur;
+        set => SetProperty(ref _aDetailerMaskBlur, value);
+    }
+
+    public string ADetailerDenoisingStrength
+    {
+        get => _aDetailerDenoisingStrength;
+        set => SetProperty(ref _aDetailerDenoisingStrength, value);
+    }
+
+    public string ADetailerInpaintOnlyMasked
+    {
+        get => _aDetailerInpaintOnlyMasked;
+        set => SetProperty(ref _aDetailerInpaintOnlyMasked, value);
+    }
+
+    public string ADetailerInpaintPadding
+    {
+        get => _aDetailerInpaintPadding;
+        set => SetProperty(ref _aDetailerInpaintPadding, value);
+    }
+
+    public string ADetailerVersion
+    {
+        get => _aDetailerVersion;
+        set => SetProperty(ref _aDetailerVersion, value);
     }
 
     public string Version
