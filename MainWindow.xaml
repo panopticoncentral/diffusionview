@@ -445,6 +445,26 @@
                                     </Grid>
                                 </Expander>
 
+                                <Expander x:Name="TextualInversionsExpander"
+                                          IsExpanded="True"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch">
+                                    <Expander.Header>
+                                        <TextBlock Text="Textual Inversions" 
+                                                   Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                    </Expander.Header>
+
+                                    <Grid x:Name="TextualInversionsGrid" 
+                                          ColumnSpacing="12" 
+                                          RowSpacing="8"
+                                          Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                    </Grid>
+                                </Expander>
+
                                 <Expander x:Name="ADetailerParametersExpander"
                                           IsExpanded="True"
                                           HorizontalAlignment="Stretch"

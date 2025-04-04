@@ -123,6 +123,171 @@ public sealed partial class PhotoService : IDisposable
         return comment;
     }
 
+    private List<(string, string)> ParseHashes(string hashString)
+    {
+        var current = 0;
+        var hashPairs = new List<(string, string)>();
+
+        while (hashString[current] == ' ')
+        {
+            current++;
+        }
+
+        if (hashString[current] != '{')
+        {
+            throw new FormatException("Bad hash");
+        }
+
+        do
+        {
+            current++;
+
+            while (hashString[current] == ' ')
+            {
+                current++;
+            }
+
+            if (hashString[current++] != '"')
+            {
+                throw new FormatException("Bad hash");
+            }
+
+            var name = new StringBuilder();
+            while (hashString[current] != '"')
+            {
+                name.Append(hashString[current++]);
+            }
+
+            current++;
+
+            if (hashString[current++] != ':')
+            {
+                throw new FormatException("Bad hash");
+            }
+
+            while (hashString[current] == ' ')
+            {
+                current++;
+            }
+
+            if (hashString[current++] != '"')
+            {
+                throw new FormatException("Bad hash");
+            }
+
+            var hash = new StringBuilder();
+            while (hashString[current] != '"')
+            {
+                hash.Append(hashString[current++]);
+            }
+
+            if (hashString[current++] != '"')
+            {
+                throw new FormatException("Bad hash");
+            }
+
+            hashPairs.Add((name.ToString(), hash.ToString()));
+        } while (hashString[current] == ',');
+
+        if (hashString[current] != '}')
+        {
+            throw new FormatException("Bad hash");
+        }
+
+        return hashPairs;
+    }
+
+    private async Task ProcessHashes(PhotoDatabase db, string hashString, Photo photo)
+    {
+        if (string.IsNullOrWhiteSpace(hashString)) return;
+
+        photo.TextualInversions ??= [];
+
+        try
+        {
+            var hashPairs = ParseHashes(hashString);
+
+            foreach (var (name, hash) in hashPairs)
+            {
+                if (name is "vae" or "model") continue;
+
+                if (name.StartsWith("lora:", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!name.StartsWith("embed:"))
+                {
+                    continue;
+                }
+
+                var tiName = name[6..];
+
+                if (!long.TryParse(hash, NumberStyles.HexNumber, null, out var hashValue)) 
+                    throw new FormatException("Bad hash");
+                var model = await FetchModelInformationByHashAsync(db, hashValue);
+
+                if (model.ModelName == "<Unknown>")
+                {
+                    model.ModelName = tiName;
+                    await db.SaveChangesAsync();
+                }
+                
+                if (photo.TextualInversions.All(m => m.ModelVersionId != model.ModelVersionId))
+                {
+                    photo.TextualInversions.Add(model);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            photo.OtherParameters["Hash Parsing Error"] = ex.Message;
+        }
+    }
+
+    private async Task ProcessTextualInversions(PhotoDatabase db, string tiHashesString, Photo photo)
+    {
+        if (string.IsNullOrWhiteSpace(tiHashesString)) return;
+
+        photo.TextualInversions ??= [];
+
+        try
+        {
+            var tiPairs = tiHashesString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            foreach (var pair in tiPairs)
+            {
+                var parts = pair.Split(':', 2);
+                if (parts.Length != 2) continue;
+
+                var name = parts[0].Trim().Trim('"');
+                var hash = parts[1].Trim()[..10];
+
+                if (!long.TryParse(hash, NumberStyles.HexNumber, null, out var hashValue))
+                {
+                    throw new FormatException("Invalid hash");
+                }
+
+                var model = await FetchModelInformationByHashAsync(db, hashValue);
+
+                if (model.ModelName == "<Unknown>")
+                {
+                    model.ModelName = name;
+                    await db.SaveChangesAsync();
+                }
+
+                if (photo.TextualInversions.All(m => m.ModelVersionId != model.ModelVersionId))
+                {
+                    photo.TextualInversions.Add(model);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            photo.OtherParameters["TI Parsing Error"] = ex.Message;
+        }
+    }
+
     private async Task ParseStableDiffusionMetadata(PhotoDatabase db, string raw, Photo photo)
     {
         photo.Raw = raw;
@@ -194,7 +359,7 @@ public sealed partial class PhotoService : IDisposable
                         photo.ADetailerConfidence = confidence;
                     break;
 
-                case "adetailer dilate/erode":
+                case "adetailer dilate erode":
                     if (int.TryParse(value, out var dilateErode))
                         photo.ADetailerDilateErode = dilateErode;
                     break;
@@ -248,6 +413,26 @@ public sealed partial class PhotoService : IDisposable
                     if (!double.TryParse(value, out var denoisingStrength))
                         throw new FormatException("Invalid denoising strength value");
                     photo.DenoisingStrength = denoisingStrength;
+                    break;
+
+                case "emphasis":
+                    if (value == "No norm")
+                    {
+                        photo.NoEmphasisNorm = true;
+                    }
+                    else
+                    {
+                        throw new FormatException("Unexpected emphasis");
+                    }
+                    break;
+
+                case "hashes":
+                    await ProcessHashes(db, value, photo);
+                    break;
+
+                case "hires cfg scale":
+                    if (!int.TryParse(value, out var hiresCfgScale)) throw new FormatException("Invalid hires steps value");
+                    photo.HiresCfgScale = hiresCfgScale;
                     break;
 
                 case "hires steps":
@@ -306,6 +491,10 @@ public sealed partial class PhotoService : IDisposable
                 case "steps":
                     if (!int.TryParse(value, out var steps)) throw new FormatException("Invalid steps value");
                     photo.Steps = steps;
+                    break;
+
+                case "ti hashes":
+                    await ProcessTextualInversions(db, value, photo);
                     break;
 
                 case "vae":
@@ -505,7 +694,10 @@ public sealed partial class PhotoService : IDisposable
         var props = await file.GetBasicPropertiesAsync();
         var imageProps = await file.Properties.GetImagePropertiesAsync();
 
-        var photo = await db.Photos.Include(p => p.Model).FirstOrDefaultAsync(p => p.Path == path);
+        var photo = await db.Photos
+            .Include(p => p.Model)
+            .Include(p => p.TextualInversions)
+            .FirstOrDefaultAsync(p => p.Path == path);
         var isNew = photo == null;
 
         if (isNew)
@@ -777,7 +969,8 @@ public sealed partial class PhotoService : IDisposable
         var db = new PhotoDatabase();
         return await db.Photos
             .Where(p => p.Path.StartsWith(folderPath))
-            .Include(p => p.Model)  // Include the related Model entity
+            .Include(p => p.Model)
+            .Include(p => p.TextualInversions)
             .AsNoTracking()
             .ToListAsync();
     }

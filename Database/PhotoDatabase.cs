@@ -35,5 +35,13 @@ public sealed partial class PhotoDatabase : DbContext
                 v => JsonSerializer.Serialize(v, serializerOptions),
                 v => JsonSerializer.Deserialize<Dictionary<string, string>>(v, serializerOptions)
             );
+
+        modelBuilder.Entity<Photo>()
+            .HasOne(p => p.Model)
+            .WithMany(m => m.Photos);
+
+        modelBuilder.Entity<Photo>()
+            .HasMany(p => p.TextualInversions)
+            .WithMany();
     }
 }

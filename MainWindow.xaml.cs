@@ -75,23 +75,27 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         if (FocusedItem == null) return;
 
         UpdateGenerationParametersExpander();
+        UpdateTextualInversionsExpander();
         UpdateADetailerExpander();
         UpdateHiresParametersExpander();
         UpdateAdditionalParametersExpander();
     }
 
-    private void AddRow(Grid grid, int row, string displayName, string value)
+    private void AddRow(Grid grid, int row, string name, string value)
     {
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var textBlock = new TextBlock
+        if (!string.IsNullOrWhiteSpace(name))
         {
-            Text = displayName + ":",
-            Margin = new Thickness(0, 0, 0, 8)
-        };
-        Grid.SetRow(textBlock, row);
-        Grid.SetColumn(textBlock, 0);
-        grid.Children.Add(textBlock);
+            var textBlock = new TextBlock
+            {
+                Text = name + ":",
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            Grid.SetRow(textBlock, row);
+            Grid.SetColumn(textBlock, 0);
+            grid.Children.Add(textBlock);
+        }
 
         var textBoxStyle = PropertiesPane.Resources["SelectableTextStyle"] as Style;
         var textBox = new TextBox
@@ -105,23 +109,17 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         grid.Children.Add(textBox);
     }
 
-    private void UpdateParametersExpander(Expander expander, Grid grid, List<(string DisplayName, string PropertyName)> properties)
+    private void UpdateParametersExpander(Expander expander, Grid grid, List<(string, string)> properties)
     {
         grid.RowDefinitions.Clear();
         grid.Children.Clear();
 
         var row = 0;
 
-        foreach (var (displayName, propertyName) in properties)
+        foreach (var (name, property) in properties)
         {
-            var propertyInfo = typeof(PhotoItem).GetProperty(propertyName);
-            if (propertyInfo == null) continue;
-
-            var value = propertyInfo.GetValue(FocusedItem)?.ToString() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(value)) continue;
-
-            AddRow(grid, row, displayName, value);
-
+            if (string.IsNullOrWhiteSpace(property)) continue;
+            AddRow(grid, row, name, property);
             row++;
         }
 
@@ -130,40 +128,51 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private void UpdateGenerationParametersExpander()
     {
-        var generationProperties = new List<(string DisplayName, string PropertyName)>
+        var generationProperties = new List<(string, string)>
         {
-            ("Model", nameof(FocusedItem.ModelName)),
-            ("Model Version", nameof(FocusedItem.ModelVersionName)),
-            ("Generated Resolution", nameof(FocusedItem.GeneratedResolution)),
-            ("Steps", nameof(FocusedItem.Steps)),
-            ("CFG scale", nameof(FocusedItem.CfgScale)),
-            ("Sampler", nameof(FocusedItem.Sampler)),
-            ("Seed", nameof(FocusedItem.Seed)),
-            ("Version", nameof(FocusedItem.Version)),
-            ("Clip Skip", nameof(FocusedItem.ClipSkip)),
-            ("VAE", nameof(FocusedItem.Vae)),
-            ("Denoising Strength", nameof(FocusedItem.DenoisingStrength)),
-            ("Variation Seed", nameof(FocusedItem.VariationSeed)),
-            ("Variation Seed Strength", nameof(FocusedItem.VariationSeedStrength)),
-            ("Schedule Type", nameof(FocusedItem.ScheduleType)),
-            ("Remix Of", nameof(FocusedItem.RemixOf))
+            ("Model", $"{FocusedItem.ModelName} [{FocusedItem.ModelVersionName}]"),
+            ("Generated Resolution", FocusedItem.GeneratedResolution),
+            ("Steps", FocusedItem.Steps),
+            ("CFG scale", FocusedItem.CfgScale),
+            ("Sampler", FocusedItem.Sampler),
+            ("Seed", FocusedItem.Seed),
+            ("Version", FocusedItem.Version),
+            ("Clip Skip", FocusedItem.ClipSkip),
+            ("VAE", FocusedItem.Vae),
+            ("Denoising Strength", FocusedItem.DenoisingStrength),
+            ("Variation Seed", FocusedItem.VariationSeed),
+            ("Variation Seed Strength", FocusedItem.VariationSeedStrength),
+            ("Schedule Type", FocusedItem.ScheduleType),
+            ("Don't Normalize Emphasis", FocusedItem.NoEmphasisNorm),
+            ("Remix Of", FocusedItem.RemixOf)
         };
 
         UpdateParametersExpander(GenerationParametersExpander, GenerationParametersGrid, generationProperties);
     }
 
+    private void UpdateTextualInversionsExpander()
+    {
+        UpdateParametersExpander(
+            TextualInversionsExpander, 
+            TextualInversionsGrid, 
+            FocusedItem
+                .TextualInversions
+                .Select(ti => ((string)null, $"{ti.name} [{ti.versionName}]"))
+                .ToList());
+    }
+
     private void UpdateADetailerExpander()
     {
-        var aDetailerProperties = new List<(string DisplayName, string PropertyName)>
+        var aDetailerProperties = new List<(string, string)>
         {
-            ("Model", nameof(FocusedItem.ADetailerModel)),
-            ("Confidence", nameof(FocusedItem.ADetailerConfidence)),
-            ("Dilate/Erode", nameof(FocusedItem.ADetailerDilateErode)),
-            ("Mask Blur", nameof(FocusedItem.ADetailerMaskBlur)),
-            ("Denoising Strength", nameof(FocusedItem.ADetailerDenoisingStrength)),
-            ("Inpaint Only Masked", nameof(FocusedItem.ADetailerInpaintOnlyMasked)),
-            ("Inpaint Padding", nameof(FocusedItem.ADetailerInpaintPadding)),
-            ("Version", nameof(FocusedItem.ADetailerVersion))
+            ("Model", FocusedItem.ADetailerModel),
+            ("Confidence", FocusedItem.ADetailerConfidence),
+            ("Dilate/Erode", FocusedItem.ADetailerDilateErode),
+            ("Mask Blur", FocusedItem.ADetailerMaskBlur),
+            ("Denoising Strength", FocusedItem.ADetailerDenoisingStrength),
+            ("Inpaint Only Masked", FocusedItem.ADetailerInpaintOnlyMasked),
+            ("Inpaint Padding", FocusedItem.ADetailerInpaintPadding),
+            ("Version", FocusedItem.ADetailerVersion)
         };
 
         UpdateParametersExpander(ADetailerParametersExpander, ADetailerParametersGrid, aDetailerProperties);
@@ -171,11 +180,12 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
     private void UpdateHiresParametersExpander()
     {
-        var hiresDetailerProperties = new List<(string DisplayName, string PropertyName)>
+        var hiresDetailerProperties = new List<(string, string)>
         {
-            ("Steps", nameof(FocusedItem.HiresSteps)),
-            ("Upscale", nameof(FocusedItem.HiresUpscale)),
-            ("Upscaler", nameof(FocusedItem.HiresUpscaler))
+            ("Steps", FocusedItem.HiresSteps),
+            ("Cfg Scale", FocusedItem.HiresCfgScale),
+            ("Upscale", FocusedItem.HiresUpscale),
+            ("Upscaler", FocusedItem.HiresUpscaler)
         };
 
         UpdateParametersExpander(HiresParametersExpander, HiresParametersGrid, hiresDetailerProperties);

@@ -6,6 +6,7 @@ using System.Globalization;
 using DiffusionView.Database;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Collections.ObjectModel;
 
 namespace DiffusionView;
 
@@ -37,6 +38,7 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _denoisingStrength = photo.DenoisingStrength != 0 ? photo.DenoisingStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _variationSeed = photo.VariationSeed != 0 ? photo.VariationSeed.ToString() : string.Empty;
     private string _hiresSteps = photo.HiresSteps != 0 ? photo.HiresSteps.ToString() : string.Empty;
+    private string _hiresCfgScale = photo.HiresCfgScale != 0 ? photo.HiresCfgScale.ToString() : string.Empty;
     private string _variationSeedStrength = photo.VariationSeedStrength != 0 ? photo.VariationSeedStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _hiresUpscale = photo.HiresUpscale != 0 ? photo.HiresUpscale.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _hiresUpscaler = photo.HiresUpscaler ?? string.Empty;
@@ -50,10 +52,13 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _aDetailerDenoisingStrength = photo.ADetailerDenoisingStrength != 0 ? photo.ADetailerDenoisingStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _aDetailerInpaintOnlyMasked = photo.ADetailerInpaintOnlyMasked != null ? photo.ADetailerInpaintOnlyMasked.Value ? "True" : "False" : string.Empty;
     private string _aDetailerInpaintPadding = photo.ADetailerInpaintPadding != 0 ? photo.ADetailerInpaintPadding.ToString() : string.Empty;
+    private List<(string name, string versionName)> _textualInversions = photo.TextualInversions.Select(ti => (ti.ModelName, ti.ModelVersionName)).ToList();
     private string _aDetailerVersion = photo.ADetailerVersion ?? string.Empty;
+    private string _noEmphasisNorm = photo.NoEmphasisNorm ? "true" : string.Empty;
     private string _version = photo.Version ?? string.Empty;
     private Dictionary<string, string> _otherParameters = new(photo.OtherParameters);
     private string _raw = photo.Raw ?? "No raw data available";
+
     public bool IsSelected
     {
         get => _isSelected;
@@ -228,10 +233,22 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
         set => SetProperty(ref _hiresUpscaler, value);
     }
 
+    public string HiresCfgScale
+    {
+        get => _hiresCfgScale;
+        set => SetProperty(ref _hiresCfgScale, value);
+    }
+
     public string HiresSteps
     {
         get => _hiresSteps;
         set => SetProperty(ref _hiresSteps, value);
+    }
+
+    public string NoEmphasisNorm
+    {
+        get => _noEmphasisNorm;
+        set => SetProperty(ref _noEmphasisNorm, value);
     }
 
     public string Vae
@@ -298,6 +315,12 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     {
         get => _aDetailerVersion;
         set => SetProperty(ref _aDetailerVersion, value);
+    }
+
+    public List<(string name, string versionName)> TextualInversions
+    {
+        get => _textualInversions;
+        set => SetProperty(ref _textualInversions, value);
     }
 
     public string Version

@@ -65,6 +65,8 @@ public sealed class Photo
 
     public int HiresSteps { get; set; }
 
+    public int HiresCfgScale { get; set; }
+
     public long RemixOfId { get; set; }
 
     [MaxLength(64)]
@@ -87,6 +89,10 @@ public sealed class Photo
 
     [MaxLength(64)]
     public string ADetailerVersion { get; set; }
+
+    public bool NoEmphasisNorm { get; set; }
+
+    public List<Model> TextualInversions { get; set; } = [];
 
     [MaxLength(64)]
     public string Version { get; set; }
