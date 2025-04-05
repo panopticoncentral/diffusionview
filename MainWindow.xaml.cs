@@ -75,6 +75,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         if (FocusedItem == null) return;
 
         UpdateGenerationParametersExpander();
+        UpdateLorasInversionsExpander();
         UpdateTextualInversionsExpander();
         UpdateADetailerExpander();
         UpdateHiresParametersExpander();
@@ -148,6 +149,17 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         };
 
         UpdateParametersExpander(GenerationParametersExpander, GenerationParametersGrid, generationProperties);
+    }
+
+    private void UpdateLorasInversionsExpander()
+    {
+        UpdateParametersExpander(
+            LorasExpander,
+            LorasGrid,
+            FocusedItem
+                .Loras
+                .Select(lora => ((string)null, $"{lora.name} [{lora.versionName}]"))
+                .ToList());
     }
 
     private void UpdateTextualInversionsExpander()

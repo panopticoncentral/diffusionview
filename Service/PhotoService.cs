@@ -197,6 +197,38 @@ public sealed partial class PhotoService : IDisposable
         return hashPairs;
     }
 
+    private async Task ProcessLoraHashes(PhotoDatabase db, string loraHashesString, Photo photo)
+    {
+        if (string.IsNullOrWhiteSpace(loraHashesString)) return;
+
+        photo.Loras ??= [];
+        try
+        {
+            var loraPairs = loraHashesString.Trim('"').Split(',').Select(pair =>
+            {
+                var pairValues = pair.Split(':');
+                var name = pairValues[0].Trim();
+                var hash = pairValues[1].Trim();
+                return (name, hash);
+            }).ToList();
+
+            foreach (var (name, hash) in loraPairs)
+            {
+                if (!long.TryParse(hash, NumberStyles.HexNumber, null, out var hashValue))
+                    throw new FormatException("Bad hash");
+                var model = await FetchModelInformationByHashAsync(db, hashValue);
+                if (photo.Loras.All(m => m.ModelVersionId != model.ModelVersionId))
+                {
+                    photo.Loras.Add(model);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            photo.OtherParameters["Lora Parsing Error"] = ex.Message;
+        }
+    }
+
     private async Task ProcessHashes(PhotoDatabase db, string hashString, Photo photo)
     {
         if (string.IsNullOrWhiteSpace(hashString)) return;
@@ -211,31 +243,29 @@ public sealed partial class PhotoService : IDisposable
             {
                 if (name is "vae" or "model") continue;
 
-                if (name.StartsWith("lora:", StringComparison.InvariantCultureIgnoreCase))
+                if (!name.StartsWith("lora:", StringComparison.InvariantCultureIgnoreCase)
+                    && !name.StartsWith("embed:"))
                 {
                     continue;
                 }
-
-                if (!name.StartsWith("embed:"))
-                {
-                    continue;
-                }
-
-                var tiName = name[6..];
 
                 if (!long.TryParse(hash, NumberStyles.HexNumber, null, out var hashValue)) 
                     throw new FormatException("Bad hash");
                 var model = await FetchModelInformationByHashAsync(db, hashValue);
 
-                if (model.ModelName == "<Unknown>")
+                if (name.StartsWith("embed:"))
                 {
-                    model.ModelName = tiName;
-                    await db.SaveChangesAsync();
+                    if (photo.TextualInversions.All(m => m.ModelVersionId != model.ModelVersionId))
+                    {
+                        photo.TextualInversions.Add(model);
+                    }
                 }
-                
-                if (photo.TextualInversions.All(m => m.ModelVersionId != model.ModelVersionId))
+                else
                 {
-                    photo.TextualInversions.Add(model);
+                    if (photo.Loras.All(m => m.ModelVersionId != model.ModelVersionId))
+                    {
+                        photo.Loras.Add(model);
+                    }
                 }
             }
         }
@@ -359,6 +389,7 @@ public sealed partial class PhotoService : IDisposable
                         photo.ADetailerConfidence = confidence;
                     break;
 
+                case "adetailer dilate/erode":
                 case "adetailer dilate erode":
                     if (int.TryParse(value, out var dilateErode))
                         photo.ADetailerDilateErode = dilateErode;
@@ -392,7 +423,7 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "civitai resources":
-                    photo.Model = await ProcessCivitaiResources(db, value);
+                    await ProcessCivitaiResources(db, photo, value);
                     break;
 
                 case "clip skip":
@@ -431,7 +462,7 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "hires cfg scale":
-                    if (!int.TryParse(value, out var hiresCfgScale)) throw new FormatException("Invalid hires steps value");
+                    if (!double.TryParse(value, out var hiresCfgScale)) throw new FormatException("Invalid hires steps value");
                     photo.HiresCfgScale = hiresCfgScale;
                     break;
 
@@ -448,6 +479,10 @@ public sealed partial class PhotoService : IDisposable
 
                 case "hires upscaler":
                     photo.HiresUpscaler = value;
+                    break;
+
+                case "lora hashes":
+                    await ProcessLoraHashes(db, value, photo);
                     break;
 
                 case "model":
@@ -528,17 +563,48 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private async Task<Model> ProcessCivitaiResources(PhotoDatabase db, string value)
+    private async Task<Model> ProcessCivitaiResources(PhotoDatabase db, Photo photo, string value)
     {
         var elements = JsonSerializer.Deserialize<List<JsonElement>>(value);
 
         foreach (var element in elements)
         {
             var type = element.GetProperty("type").GetString();
+            var model = await FetchModelInformationByVersionIdAsync(db,
+                element.GetProperty("modelVersionId").GetInt32());
 
-            if (type == "checkpoint")
+            switch (type)
             {
-                return await FetchModelInformationByVersionIdAsync(db, element.GetProperty("modelVersionId").GetInt32());
+                case "checkpoint":
+                    if (photo.Model != null && photo.Model.ModelVersionId == model.ModelVersionId)
+                    {
+                        throw new FormatException("Conflicting model.");
+                    }
+
+                    photo.Model = model;
+                    break;
+
+                case "lora":
+                    if (photo.Loras.All(m => m.ModelVersionId != model.ModelVersionId))
+                    {
+                        photo.Loras.Add(model);
+                    }
+                    break;
+
+                case "embed":
+                    if (photo.TextualInversions.All(m => m.ModelVersionId != model.ModelVersionId))
+                    {
+                        photo.TextualInversions.Add(model);
+                    }
+                    break;
+
+                case "vae":
+                    photo.Vae = model.ModelVersionName;
+                    break;
+
+                default:
+                    photo.OtherParameters[$"civitai resource: {type}"] = model.ModelName;
+                    break;
             }
         }
 
@@ -696,6 +762,7 @@ public sealed partial class PhotoService : IDisposable
 
         var photo = await db.Photos
             .Include(p => p.Model)
+            .Include(p => p.Loras)
             .Include(p => p.TextualInversions)
             .FirstOrDefaultAsync(p => p.Path == path);
         var isNew = photo == null;
@@ -970,6 +1037,7 @@ public sealed partial class PhotoService : IDisposable
         return await db.Photos
             .Where(p => p.Path.StartsWith(folderPath))
             .Include(p => p.Model)
+            .Include(p => p.Loras)
             .Include(p => p.TextualInversions)
             .AsNoTracking()
             .ToListAsync();

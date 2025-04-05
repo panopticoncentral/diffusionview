@@ -65,7 +65,7 @@ public sealed class Photo
 
     public int HiresSteps { get; set; }
 
-    public int HiresCfgScale { get; set; }
+    public double HiresCfgScale { get; set; }
 
     public long RemixOfId { get; set; }
 
@@ -93,6 +93,8 @@ public sealed class Photo
     public bool NoEmphasisNorm { get; set; }
 
     public List<Model> TextualInversions { get; set; } = [];
+
+    public List<Model> Loras { get; set; } = [];
 
     [MaxLength(64)]
     public string Version { get; set; }
