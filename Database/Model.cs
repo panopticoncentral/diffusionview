@@ -18,5 +18,8 @@ public sealed class Model
     [MaxLength(260)]
     public required string ModelName { get; set; }
 
+    [MaxLength(32)]
+    public required string Kind { get; set; }
+
     public List<Photo> Photos { get; set; } = [];
 }
