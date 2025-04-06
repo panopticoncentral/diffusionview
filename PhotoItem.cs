@@ -38,10 +38,12 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _denoisingStrength = photo.DenoisingStrength != 0 ? photo.DenoisingStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _variationSeed = photo.VariationSeed != 0 ? photo.VariationSeed.ToString() : string.Empty;
     private string _hiresSteps = photo.HiresSteps != 0 ? photo.HiresSteps.ToString() : string.Empty;
-    private string _hiresCfgScale = photo.HiresCfgScale != 0 ? photo.HiresCfgScale.ToString() : string.Empty;
+    private string _hiresCfgScale = photo.HiresCfgScale != 0 ? photo.HiresCfgScale.ToString(CultureInfo.InvariantCulture) : string.Empty;
+    private string _hiresPrompt = photo.HiresPrompt ?? string.Empty;
     private string _variationSeedStrength = photo.VariationSeedStrength != 0 ? photo.VariationSeedStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _hiresUpscale = photo.HiresUpscale != 0 ? photo.HiresUpscale.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _hiresUpscaler = photo.HiresUpscaler ?? string.Empty;
+    private string _rng = photo.Rng ?? string.Empty;
     private string _vae = photo.Vae ?? string.Empty;
     private string _scheduleType = photo.ScheduleType ?? string.Empty;
     private string _remixOf = photo.RemixOfId != 0 ? $"https://civitai.com/images/{photo.RemixOfId}" : string.Empty;
@@ -244,6 +246,18 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     {
         get => _hiresSteps;
         set => SetProperty(ref _hiresSteps, value);
+    }
+
+    public string HiresPrompt
+    {
+        get => _hiresPrompt;
+        set => SetProperty(ref _hiresPrompt, value);
+    }
+
+    public string Rng
+    {
+        get => _rng;
+        set => SetProperty(ref _rng, value);
     }
 
     public string NoEmphasisNorm

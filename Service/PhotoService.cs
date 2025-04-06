@@ -466,6 +466,10 @@ public sealed partial class PhotoService : IDisposable
                     photo.HiresCfgScale = hiresCfgScale;
                     break;
 
+                case "hires prompt":
+                    photo.HiresPrompt = value;
+                    break;
+
                 case "hires steps":
                     if (!int.TryParse(value, out var hiresSteps)) throw new FormatException("Invalid hires steps value");
                     photo.HiresSteps = hiresSteps;
@@ -496,6 +500,10 @@ public sealed partial class PhotoService : IDisposable
                         throw new FormatException("Invalid hex model hash");
 
                     photo.Model = await FetchModelInformationByHashAsync(db, modelHash, "Checkpoint");
+                    break;
+
+                case "rng":
+                    photo.Rng = value;
                     break;
 
                 case "sampler":

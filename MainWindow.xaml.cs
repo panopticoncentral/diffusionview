@@ -145,6 +145,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             ("Variation Seed Strength", FocusedItem.VariationSeedStrength),
             ("Schedule Type", FocusedItem.ScheduleType),
             ("Don't Normalize Emphasis", FocusedItem.NoEmphasisNorm),
+            ("Rng", FocusedItem.Rng),
             ("Remix Of", FocusedItem.RemixOf)
         };
 
@@ -194,6 +195,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     {
         var hiresDetailerProperties = new List<(string, string)>
         {
+            ("Prompt", FocusedItem.HiresPrompt),
             ("Steps", FocusedItem.HiresSteps),
             ("Cfg Scale", FocusedItem.HiresCfgScale),
             ("Upscale", FocusedItem.HiresUpscale),

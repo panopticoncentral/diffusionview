@@ -67,6 +67,12 @@ public sealed class Photo
 
     public double HiresCfgScale { get; set; }
 
+    [MaxLength(1024)]
+    public string HiresPrompt { get; set; }
+
+    [MaxLength(64)]
+    public string Rng { get; set; }
+
     public long RemixOfId { get; set; }
 
     [MaxLength(64)]
