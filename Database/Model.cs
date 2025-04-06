@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DiffusionView.Database;
@@ -20,6 +19,4 @@ public sealed class Model
 
     [MaxLength(32)]
     public required string Kind { get; set; }
-
-    public List<Photo> Photos { get; set; } = [];
 }

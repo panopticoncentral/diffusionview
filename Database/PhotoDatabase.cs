@@ -38,7 +38,7 @@ public sealed partial class PhotoDatabase : DbContext
 
         modelBuilder.Entity<Photo>()
             .HasOne(p => p.Model)
-            .WithMany(m => m.Photos);
+            .WithMany();
 
         modelBuilder.Entity<Photo>()
             .HasMany(p => p.TextualInversions)

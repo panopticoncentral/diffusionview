@@ -1081,11 +1081,13 @@ public sealed partial class PhotoService : IDisposable
     public static async Task<List<Photo>> GetPhotosByModelVersionIdAsync(long modelVersionId)
     {
         var db = new PhotoDatabase();
-        return (await db.Models
-            .Include(m => m.Photos)
-            .AsNoTracking()
-            .SingleOrDefaultAsync(m => m.ModelVersionId == modelVersionId))
-            .Photos;
+        return await db.Photos
+            .Include(p => p.Model)
+            .Include(p => p.Loras)
+            .Include(p => p.TextualInversions)
+            .AsNoTracking()            
+            .Where(p => p.Model.ModelVersionId == modelVersionId)
+            .ToListAsync();
     }
 
     /*
