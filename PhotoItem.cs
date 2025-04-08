@@ -54,7 +54,7 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _aDetailerDenoisingStrength = photo.ADetailerDenoisingStrength != 0 ? photo.ADetailerDenoisingStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _aDetailerInpaintOnlyMasked = photo.ADetailerInpaintOnlyMasked != null ? photo.ADetailerInpaintOnlyMasked.Value ? "True" : "False" : string.Empty;
     private string _aDetailerInpaintPadding = photo.ADetailerInpaintPadding != 0 ? photo.ADetailerInpaintPadding.ToString() : string.Empty;
-    private List<(string name, string versionName, long modelId)> _loras = photo.Loras.Select(lora => (lora.ModelName, lora.ModelVersionName, lora.ModelId)).ToList();
+    private List<(string name, string versionName, long modelId, double? weight)> _loras = photo.Loras.Select(lora => (lora.Model.ModelName, lora.Model.ModelVersionName, lora.Model.ModelId, lora.Weight)).ToList();
     private List<(string name, string versionName)> _textualInversions = photo.TextualInversions.Select(ti => (ti.ModelName, ti.ModelVersionName)).ToList();
     private string _aDetailerVersion = photo.ADetailerVersion ?? string.Empty;
     private string _noEmphasisNorm = photo.NoEmphasisNorm ? "true" : string.Empty;
@@ -332,7 +332,7 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
         set => SetProperty(ref _aDetailerVersion, value);
     }
 
-    public List<(string name, string versionName, long modelId)> Loras
+    public List<(string name, string versionName, long modelId, double? weight)> Loras
     {
         get => _loras;
         set => SetProperty(ref _loras, value);

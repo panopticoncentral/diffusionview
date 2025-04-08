@@ -1,7 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DiffusionView.Database;
 
@@ -100,7 +99,7 @@ public sealed class Photo
 
     public List<Model> TextualInversions { get; set; } = [];
 
-    public List<Model> Loras { get; set; } = [];
+    public List<LoraInstance> Loras { get; set; } = [];
 
     [MaxLength(64)]
     public string Version { get; set; }

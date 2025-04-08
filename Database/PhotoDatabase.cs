@@ -45,9 +45,17 @@ public sealed partial class PhotoDatabase : DbContext
             .WithMany()
             .UsingEntity(j => j.ToTable("TextualInversions"));
 
-        modelBuilder.Entity<Photo>()
-            .HasMany(p => p.Loras)
+        modelBuilder.Entity<LoraInstance>()
+            .HasKey(l => new { l.Path, l.ModelVersionId });
+
+        modelBuilder.Entity<LoraInstance>()
+            .HasOne(l => l.Photo)
+            .WithMany(p => p.Loras)
+            .HasForeignKey(l => l.Path);
+
+        modelBuilder.Entity<LoraInstance>()
+            .HasOne(l => l.Model)
             .WithMany()
-            .UsingEntity(j => j.ToTable("Loras"));
+            .HasForeignKey(l => l.ModelVersionId);
     }
 }

@@ -159,7 +159,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             LorasGrid,
             FocusedItem
                 .Loras
-                .Select(lora => ((string)null, $"{lora.name} [{lora.versionName}]"))
+                .Select(lora => ((string)null, $"{lora.name} [{lora.versionName}]{(lora.weight != null ? $" ({lora.weight})" : string.Empty)}"))
                 .ToList());
     }
 

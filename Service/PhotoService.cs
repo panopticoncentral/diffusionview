@@ -49,10 +49,7 @@ public sealed partial class PhotoService : IDisposable
             SingleWriter = false
         });
 
-        _scanProcessingTask = Task.Run(async () =>
-        {
-            await ProcessScanQueueAsync(_cancellationTokenSource.Token);
-        });
+        _scanProcessingTask = Task.Run(async () => { await ProcessScanQueueAsync(_cancellationTokenSource.Token); });
     }
 
     /*
@@ -216,9 +213,9 @@ public sealed partial class PhotoService : IDisposable
                 if (!long.TryParse(hash, NumberStyles.HexNumber, null, out var hashValue))
                     throw new FormatException("Bad hash");
                 var model = await FetchModelInformationByHashAsync(db, hashValue, "LORA");
-                if (photo.Loras.All(m => m.ModelVersionId != model.ModelVersionId))
+                if (photo.Loras.All(l => l.Model.ModelVersionId != model.ModelVersionId))
                 {
-                    photo.Loras.Add(model);
+                    photo.Loras.Add(new LoraInstance { Model = model });
                 }
             }
         }
@@ -248,7 +245,7 @@ public sealed partial class PhotoService : IDisposable
                     continue;
                 }
 
-                if (!long.TryParse(hash, NumberStyles.HexNumber, null, out var hashValue)) 
+                if (!long.TryParse(hash, NumberStyles.HexNumber, null, out var hashValue))
                     throw new FormatException("Bad hash");
 
                 if (name.StartsWith("embed:"))
@@ -262,9 +259,9 @@ public sealed partial class PhotoService : IDisposable
                 else
                 {
                     var model = await FetchModelInformationByHashAsync(db, hashValue, "LORA");
-                    if (photo.Loras.All(m => m.ModelVersionId != model.ModelVersionId))
+                    if (photo.Loras.All(l => l.Model.ModelVersionId != model.ModelVersionId))
                     {
-                        photo.Loras.Add(model);
+                        photo.Loras.Add(new LoraInstance { Model = model });
                     }
                 }
             }
@@ -283,7 +280,8 @@ public sealed partial class PhotoService : IDisposable
 
         try
         {
-            var tiPairs = tiHashesString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var tiPairs = tiHashesString.Split(',',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             foreach (var pair in tiPairs)
             {
@@ -455,6 +453,7 @@ public sealed partial class PhotoService : IDisposable
                     {
                         throw new FormatException("Unexpected emphasis");
                     }
+
                     break;
 
                 case "hashes":
@@ -462,7 +461,8 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "hires cfg scale":
-                    if (!double.TryParse(value, out var hiresCfgScale)) throw new FormatException("Invalid hires steps value");
+                    if (!double.TryParse(value, out var hiresCfgScale))
+                        throw new FormatException("Invalid hires steps value");
                     photo.HiresCfgScale = hiresCfgScale;
                     break;
 
@@ -471,7 +471,8 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "hires steps":
-                    if (!int.TryParse(value, out var hiresSteps)) throw new FormatException("Invalid hires steps value");
+                    if (!int.TryParse(value, out var hiresSteps))
+                        throw new FormatException("Invalid hires steps value");
                     photo.HiresSteps = hiresSteps;
                     break;
 
@@ -587,7 +588,7 @@ public sealed partial class PhotoService : IDisposable
                         element.GetProperty("modelVersionId").GetInt32(),
                         "Checkpoint");
 
-                        if (photo.Model != null && photo.Model.ModelVersionId == model.ModelVersionId)
+                    if (photo.Model != null && photo.Model.ModelVersionId == model.ModelVersionId)
                     {
                         throw new FormatException("Conflicting model.");
                     }
@@ -602,9 +603,17 @@ public sealed partial class PhotoService : IDisposable
                         element.GetProperty("modelVersionId").GetInt32(),
                         "LORA");
 
-                        if (photo.Loras.All(m => m.ModelVersionId != model.ModelVersionId))
+                    if (photo.Loras.All(l => l.Model.ModelVersionId != model.ModelVersionId))
                     {
-                        photo.Loras.Add(model);
+                        if (element.TryGetProperty("weight", out var weightElement))
+                        {
+                            photo.Loras.Add(new LoraInstance
+                                { Model = model, Weight = weightElement.GetDouble() });
+                        }
+                        else
+                        {
+                            photo.Loras.Add(new LoraInstance { Model = model });
+                        }
                     }
                 }
                     break;
@@ -615,7 +624,7 @@ public sealed partial class PhotoService : IDisposable
                         element.GetProperty("modelVersionId").GetInt32(),
                         "TextualInversion");
 
-                        if (photo.TextualInversions.All(m => m.ModelVersionId != model.ModelVersionId))
+                    if (photo.TextualInversions.All(m => m.ModelVersionId != model.ModelVersionId))
                     {
                         photo.TextualInversions.Add(model);
                     }
@@ -628,7 +637,7 @@ public sealed partial class PhotoService : IDisposable
                         element.GetProperty("modelVersionId").GetInt32(),
                         "");
 
-                        photo.Vae = model.ModelVersionName;
+                    photo.Vae = model.ModelVersionName;
                 }
                     break;
 
@@ -638,7 +647,7 @@ public sealed partial class PhotoService : IDisposable
                         element.GetProperty("modelVersionId").GetInt32(),
                         "");
 
-                        photo.OtherParameters[$"civitai resource: {type}"] = model.ModelName;
+                    photo.OtherParameters[$"civitai resource: {type}"] = model.ModelName;
                 }
                     break;
             }
@@ -666,7 +675,8 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private async Task<Model> GetOrCreateModel(PhotoDatabase db, long modelVersionId, string modelVersionName, long modelId, string modelName, string kind)
+    private async Task<Model> GetOrCreateModel(PhotoDatabase db, long modelVersionId, string modelVersionName,
+        long modelId, string modelName, string kind)
     {
         var model = await db.Models.FirstOrDefaultAsync(m => m.ModelVersionId == modelVersionId);
         if (model != null) return model;
@@ -681,8 +691,10 @@ public sealed partial class PhotoService : IDisposable
         db.Models.Add(model);
         if (kind == "Checkpoint")
         {
-            ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
+            ModelAdded?.Invoke(this,
+                new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
         }
+
         await db.SaveChangesAsync();
 
         return model;
@@ -725,13 +737,15 @@ public sealed partial class PhotoService : IDisposable
 
     private async Task<Model> FetchModelInformationByHashAsync(PhotoDatabase db, long modelHash, string kind)
     {
-        return await FetchModelInformationAsync(db, $"https://civitai.com/api/v1/model-versions/by-hash/{modelHash:X10}", kind);
+        return await FetchModelInformationAsync(db,
+            $"https://civitai.com/api/v1/model-versions/by-hash/{modelHash:X10}", kind);
     }
 
 
     private async Task<Model> FetchModelInformationByVersionIdAsync(PhotoDatabase db, int modelVersionId, string kind)
     {
-        return await FetchModelInformationAsync(db, $"https://civitai.com/api/v1/model-versions/{modelVersionId}", kind);
+        return await FetchModelInformationAsync(db, $"https://civitai.com/api/v1/model-versions/{modelVersionId}",
+            kind);
     }
 
     public static async Task LoadScaledImageAsync(StorageFile sourceFile, Photo photo, uint targetHeight)
@@ -811,6 +825,7 @@ public sealed partial class PhotoService : IDisposable
         var photo = await db.Photos
             .Include(p => p.Model)
             .Include(p => p.Loras)
+            .ThenInclude(l => l.Model)
             .Include(p => p.TextualInversions)
             .FirstOrDefaultAsync(p => p.Path == path);
         var isNew = photo == null;
@@ -938,8 +953,9 @@ public sealed partial class PhotoService : IDisposable
                     .ToHashSetAsync(cancellationToken);
 
                 var folder = await StorageFolder.GetFolderFromPathAsync(path);
-                var query = folder.CreateFileQueryWithOptions(new QueryOptions(CommonFileQuery.OrderByName, [".png", ".jpg"])
-                    { FolderDepth = FolderDepth.Deep });
+                var query = folder.CreateFileQueryWithOptions(
+                    new QueryOptions(CommonFileQuery.OrderByName, [".png", ".jpg"])
+                        { FolderDepth = FolderDepth.Deep });
 
                 var files = (await query.GetFilesAsync()).Select(f => f.Path).ToList();
                 var processedFiles = 0;
@@ -1024,7 +1040,8 @@ public sealed partial class PhotoService : IDisposable
                      .Where(m => m.Kind == "Checkpoint")
                      .ToListAsync())
         {
-            ModelAdded?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
+            ModelAdded?.Invoke(this,
+                new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
         }
 
         await db.SaveChangesAsync();
@@ -1073,6 +1090,7 @@ public sealed partial class PhotoService : IDisposable
             .Where(p => p.Path.StartsWith(folderPath))
             .Include(p => p.Model)
             .Include(p => p.Loras)
+            .ThenInclude(l => l.Model)
             .Include(p => p.TextualInversions)
             .AsNoTracking()
             .ToListAsync();
@@ -1084,8 +1102,9 @@ public sealed partial class PhotoService : IDisposable
         return await db.Photos
             .Include(p => p.Model)
             .Include(p => p.Loras)
+            .ThenInclude(l => l.Model)
             .Include(p => p.TextualInversions)
-            .AsNoTracking()            
+            .AsNoTracking()
             .Where(p => p.Model.ModelVersionId == modelVersionId)
             .ToListAsync();
     }
@@ -1158,7 +1177,7 @@ public sealed partial class PhotoService : IDisposable
         public KeyValuePair GetNextKeyValuePair()
         {
             var key = new StringBuilder();
-            
+
             while (_index < line.Length && (line[_index] == ' ' || line[_index] == ','))
             {
                 _index++;
