@@ -508,13 +508,13 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     {
         try
         {
-            var dialogContent = $"Are you sure you want to remove the folder '{folderPath}' from DiffusionView?\n\nThis will only remove the folder from the application and won't delete any files from your computer.";
+            var dialogContent = $"Are you sure you want to delete the folder '{folderPath}' from your computer?";
 
             var dialog = new ContentDialog
             {
-                Title = "Remove Folder",
+                Title = "Delete Folder",
                 Content = dialogContent,
-                PrimaryButtonText = "Remove",
+                PrimaryButtonText = "Delete",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,
                 XamlRoot = Content.XamlRoot
@@ -523,31 +523,17 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             var result = await dialog.ShowAsync();
             if (result != ContentDialogResult.Primary) return;
 
-            if (NavView.SelectedItem is NavigationViewItem { Tag: string selectedPath } &&
-                selectedPath == folderPath)
+            if (Directory.Exists(folderPath))
             {
-                Photos.Clear();
+                Directory.Delete(folderPath, true);
             }
-
-            // Remove the folder from the database
-            await using var db = new PhotoDatabase();
-            var folder = await db.Folders.FirstOrDefaultAsync(f => f.Path == folderPath);
-            if (folder != null)
-            {
-                db.Folders.Remove(folder);
-                await db.SaveChangesAsync();
-            }
-
-            // Remove the folder from the UI
-            RemoveFolderItem(folderPath, Folders);
         }
         catch (Exception ex)
         {
-            // Show error dialog
             var errorDialog = new ContentDialog
             {
                 Title = "Error",
-                Content = $"An error occurred when trying to remove the folder: {ex.Message}",
+                Content = $"An error occurred when trying to delete the folder: {ex.Message}",
                 CloseButtonText = "OK",
                 XamlRoot = Content.XamlRoot
             };
