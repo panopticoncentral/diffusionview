@@ -52,6 +52,12 @@ public sealed partial class PhotoService : IDisposable
         _scanProcessingTask = Task.Run(async () => { await ProcessScanQueueAsync(_cancellationTokenSource.Token); });
     }
 
+    private static void AddModel(Photo photo, Model model, double? weight = null)
+    {
+        if (model == null || photo.Models.Any(l => l.Model.ModelVersionId == model.ModelVersionId)) return;
+        photo.Models.Add(new ModelInstance { Model = model, Weight = weight });
+    }
+
     /*
      * File watching
      */
@@ -119,7 +125,7 @@ public sealed partial class PhotoService : IDisposable
         return comment;
     }
 
-    private List<(string, string)> ParseHashes(string hashString)
+    private static List<(string, string)> ParseHashes(string hashString)
     {
         var current = 0;
         var hashPairs = new List<(string, string)>();
@@ -197,7 +203,6 @@ public sealed partial class PhotoService : IDisposable
     {
         if (string.IsNullOrWhiteSpace(loraHashesString)) return;
 
-        photo.Loras ??= [];
         try
         {
             var loraPairs = loraHashesString.Trim('"').Split(',').Select(pair =>
@@ -213,10 +218,7 @@ public sealed partial class PhotoService : IDisposable
                 if (!long.TryParse(hash, NumberStyles.HexNumber, null, out var hashValue))
                     throw new FormatException("Bad hash");
                 var model = await FetchModelInformationByHashAsync(db, hashValue, "LORA");
-                if (photo.Loras.All(l => l.Model.ModelVersionId != model.ModelVersionId))
-                {
-                    photo.Loras.Add(new LoraInstance { Model = model });
-                }
+                AddModel(photo, model);
             }
         }
         catch (Exception ex)
@@ -228,8 +230,6 @@ public sealed partial class PhotoService : IDisposable
     private async Task ProcessHashes(PhotoDatabase db, string hashString, Photo photo)
     {
         if (string.IsNullOrWhiteSpace(hashString)) return;
-
-        photo.TextualInversions ??= [];
 
         try
         {
@@ -251,18 +251,12 @@ public sealed partial class PhotoService : IDisposable
                 if (name.StartsWith("embed:"))
                 {
                     var model = await FetchModelInformationByHashAsync(db, hashValue, "TextualInversion");
-                    if (photo.TextualInversions.All(m => m.ModelVersionId != model.ModelVersionId))
-                    {
-                        photo.TextualInversions.Add(model);
-                    }
+                    AddModel(photo, model);
                 }
                 else
                 {
                     var model = await FetchModelInformationByHashAsync(db, hashValue, "LORA");
-                    if (photo.Loras.All(l => l.Model.ModelVersionId != model.ModelVersionId))
-                    {
-                        photo.Loras.Add(new LoraInstance { Model = model });
-                    }
+                    AddModel(photo, model);
                 }
             }
         }
@@ -275,8 +269,6 @@ public sealed partial class PhotoService : IDisposable
     private async Task ProcessTextualInversions(PhotoDatabase db, string tiHashesString, Photo photo)
     {
         if (string.IsNullOrWhiteSpace(tiHashesString)) return;
-
-        photo.TextualInversions ??= [];
 
         try
         {
@@ -297,17 +289,7 @@ public sealed partial class PhotoService : IDisposable
                 }
 
                 var model = await FetchModelInformationByHashAsync(db, hashValue, "TextualInversion");
-
-                if (model.ModelName == "<Unknown>")
-                {
-                    model.ModelName = name;
-                    await db.SaveChangesAsync();
-                }
-
-                if (photo.TextualInversions.All(m => m.ModelVersionId != model.ModelVersionId))
-                {
-                    photo.TextualInversions.Add(model);
-                }
+                AddModel(photo, model);
             }
         }
         catch (Exception ex)
@@ -500,7 +482,8 @@ public sealed partial class PhotoService : IDisposable
                     if (!long.TryParse(value, NumberStyles.HexNumber, null, out var modelHash))
                         throw new FormatException("Invalid hex model hash");
 
-                    photo.Model = await FetchModelInformationByHashAsync(db, modelHash, "Checkpoint");
+                    var model = await FetchModelInformationByHashAsync(db, modelHash, "Checkpoint");
+                    AddModel(photo, model);
                     break;
 
                 case "rng":
@@ -572,7 +555,7 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private async Task<Model> ProcessCivitaiResources(PhotoDatabase db, Photo photo, string value)
+    private async Task ProcessCivitaiResources(PhotoDatabase db, Photo photo, string value)
     {
         var elements = JsonSerializer.Deserialize<List<JsonElement>>(value);
 
@@ -588,12 +571,7 @@ public sealed partial class PhotoService : IDisposable
                         element.GetProperty("modelVersionId").GetInt32(),
                         "Checkpoint");
 
-                    if (photo.Model != null && photo.Model.ModelVersionId == model.ModelVersionId)
-                    {
-                        throw new FormatException("Conflicting model.");
-                    }
-
-                    photo.Model = model;
+                    AddModel(photo, model);
                 }
                     break;
 
@@ -603,17 +581,13 @@ public sealed partial class PhotoService : IDisposable
                         element.GetProperty("modelVersionId").GetInt32(),
                         "LORA");
 
-                    if (photo.Loras.All(l => l.Model.ModelVersionId != model.ModelVersionId))
+                    if (element.TryGetProperty("weight", out var weightElement))
                     {
-                        if (element.TryGetProperty("weight", out var weightElement))
-                        {
-                            photo.Loras.Add(new LoraInstance
-                                { Model = model, Weight = weightElement.GetDouble() });
-                        }
-                        else
-                        {
-                            photo.Loras.Add(new LoraInstance { Model = model });
-                        }
+                        AddModel(photo, model, weightElement.GetDouble());
+                    }
+                    else
+                    {
+                        AddModel(photo, model);
                     }
                 }
                     break;
@@ -624,10 +598,7 @@ public sealed partial class PhotoService : IDisposable
                         element.GetProperty("modelVersionId").GetInt32(),
                         "TextualInversion");
 
-                    if (photo.TextualInversions.All(m => m.ModelVersionId != model.ModelVersionId))
-                    {
-                        photo.TextualInversions.Add(model);
-                    }
+                    AddModel(photo, model);
                 }
                     break;
 
@@ -637,7 +608,10 @@ public sealed partial class PhotoService : IDisposable
                         element.GetProperty("modelVersionId").GetInt32(),
                         "");
 
-                    photo.Vae = model.ModelVersionName;
+                    if (model != null)
+                    {
+                        photo.Vae = model.ModelVersionName;
+                    }
                 }
                     break;
 
@@ -647,13 +621,14 @@ public sealed partial class PhotoService : IDisposable
                         element.GetProperty("modelVersionId").GetInt32(),
                         "");
 
-                    photo.OtherParameters[$"civitai resource: {type}"] = model.ModelName;
+                    if (model != null)
+                    {
+                        photo.OtherParameters[$"civitai resource: {type}"] = model.ModelName;
+                    }
                 }
                     break;
             }
         }
-
-        return await FetchModelInformationByVersionIdAsync(db, 0, "");
     }
 
     private static void ProcessCivitaiMetadata(string value, Photo photo)
@@ -706,7 +681,7 @@ public sealed partial class PhotoService : IDisposable
         var response = await client.GetAsync(url);
         if (!response.IsSuccessStatusCode)
         {
-            return await GetOrCreateModel(db, 0, "<Unknown>", 0, "<Unknown>", kind);
+            return null;
         }
 
         try
@@ -722,7 +697,7 @@ public sealed partial class PhotoService : IDisposable
 
             if (!string.IsNullOrWhiteSpace(kind) && modelKind != kind && (modelKind != "LoCon" || kind != "LORA"))
             {
-                throw new FormatException("Unexpected model type");
+                return null;
             }
 
             return await GetOrCreateModel(db, modelVersionId, modelVersionName, modelId, modelName, modelKind);
@@ -732,7 +707,7 @@ public sealed partial class PhotoService : IDisposable
             // Ignore error
         }
 
-        return await GetOrCreateModel(db, 0, "<Unknown>", 0, "<Unknown>", kind);
+        return null;
     }
 
     private async Task<Model> FetchModelInformationByHashAsync(PhotoDatabase db, long modelHash, string kind)
@@ -823,10 +798,8 @@ public sealed partial class PhotoService : IDisposable
         var imageProps = await file.Properties.GetImagePropertiesAsync();
 
         var photo = await db.Photos
-            .Include(p => p.Model)
-            .Include(p => p.Loras)
+            .Include(p => p.Models)
             .ThenInclude(l => l.Model)
-            .Include(p => p.TextualInversions)
             .FirstOrDefaultAsync(p => p.Path == path);
         var isNew = photo == null;
 
@@ -874,7 +847,11 @@ public sealed partial class PhotoService : IDisposable
             photo.Raw = $"Metadata extraction failed: {ex.Message}";
         }
 
-        photo.Model ??= await FetchModelInformationByVersionIdAsync(db, 0, "Checkpoint");
+        if (photo.Models.All(m => m.Model.Kind != "Checkpoint"))
+        {
+            var model = await FetchModelInformationByVersionIdAsync(db, 0, "Checkpoint");
+            AddModel(photo, model);
+        }
 
         if (!isNew)
         {
@@ -890,7 +867,8 @@ public sealed partial class PhotoService : IDisposable
     {
         await using var db = new PhotoDatabase();
         var existingPhoto = await db.Photos
-            .Include(p => p.Model)
+            .Include(p => p.Models)
+            .ThenInclude(m => m.Model)
             .FirstOrDefaultAsync(p => p.Path == path);
         if (existingPhoto == null) return;
 
@@ -1088,10 +1066,8 @@ public sealed partial class PhotoService : IDisposable
         var db = new PhotoDatabase();
         return await db.Photos
             .Where(p => p.Path.StartsWith(folderPath))
-            .Include(p => p.Model)
-            .Include(p => p.Loras)
+            .Include(p => p.Models)
             .ThenInclude(l => l.Model)
-            .Include(p => p.TextualInversions)
             .AsNoTracking()
             .ToListAsync();
     }
@@ -1100,12 +1076,10 @@ public sealed partial class PhotoService : IDisposable
     {
         var db = new PhotoDatabase();
         return await db.Photos
-            .Include(p => p.Model)
-            .Include(p => p.Loras)
+            .Include(p => p.Models)
             .ThenInclude(l => l.Model)
-            .Include(p => p.TextualInversions)
             .AsNoTracking()
-            .Where(p => p.Model.ModelVersionId == modelVersionId)
+            .Where(p => p.Models.Any(m => m.ModelVersionId == modelVersionId))
             .ToListAsync();
     }
 

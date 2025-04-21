@@ -36,24 +36,15 @@ public sealed partial class PhotoDatabase : DbContext
                 v => JsonSerializer.Deserialize<Dictionary<string, string>>(v, serializerOptions)
             );
 
-        modelBuilder.Entity<Photo>()
-            .HasOne(p => p.Model)
-            .WithMany();
-
-        modelBuilder.Entity<Photo>()
-            .HasMany(p => p.TextualInversions)
-            .WithMany()
-            .UsingEntity(j => j.ToTable("TextualInversions"));
-
-        modelBuilder.Entity<LoraInstance>()
+        modelBuilder.Entity<ModelInstance>()
             .HasKey(l => new { l.Path, l.ModelVersionId });
 
-        modelBuilder.Entity<LoraInstance>()
+        modelBuilder.Entity<ModelInstance>()
             .HasOne(l => l.Photo)
-            .WithMany(p => p.Loras)
+            .WithMany(p => p.Models)
             .HasForeignKey(l => l.Path);
 
-        modelBuilder.Entity<LoraInstance>()
+        modelBuilder.Entity<ModelInstance>()
             .HasOne(l => l.Model)
             .WithMany()
             .HasForeignKey(l => l.ModelVersionId);

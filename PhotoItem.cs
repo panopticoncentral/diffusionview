@@ -32,8 +32,8 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _sampler = photo.Sampler ?? string.Empty;
     private string _cfgScale = photo.CfgScale != 0 ? photo.CfgScale.ToString("F1") : string.Empty;
     private string _seed = photo.Seed != 0 ? photo.Seed.ToString() : string.Empty;
-    private string _modelName = photo.Model?.ModelName ?? string.Empty;
-    private string _modelVersionName = photo.Model?.ModelVersionName ?? string.Empty;
+    private string _modelName = photo.Models.FirstOrDefault(m => m.Model.Kind == "Checkpoint")?.Model.ModelName ?? string.Empty;
+    private string _modelVersionName = photo.Models.FirstOrDefault(m => m.Model.Kind == "Checkpoint")?.Model.ModelVersionName ?? string.Empty;
     private string _clipSkip = photo.ClipSkip != 0 ? photo.ClipSkip.ToString() : string.Empty;
     private string _denoisingStrength = photo.DenoisingStrength != 0 ? photo.DenoisingStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _variationSeed = photo.VariationSeed != 0 ? photo.VariationSeed.ToString() : string.Empty;
@@ -54,8 +54,8 @@ public partial class PhotoItem(Photo photo) : INotifyPropertyChanged
     private string _aDetailerDenoisingStrength = photo.ADetailerDenoisingStrength != 0 ? photo.ADetailerDenoisingStrength.ToString(CultureInfo.InvariantCulture) : string.Empty;
     private string _aDetailerInpaintOnlyMasked = photo.ADetailerInpaintOnlyMasked != null ? photo.ADetailerInpaintOnlyMasked.Value ? "True" : "False" : string.Empty;
     private string _aDetailerInpaintPadding = photo.ADetailerInpaintPadding != 0 ? photo.ADetailerInpaintPadding.ToString() : string.Empty;
-    private List<(string name, string versionName, long modelId, double? weight)> _loras = photo.Loras.Select(lora => (lora.Model.ModelName, lora.Model.ModelVersionName, lora.Model.ModelId, lora.Weight)).ToList();
-    private List<(string name, string versionName)> _textualInversions = photo.TextualInversions.Select(ti => (ti.ModelName, ti.ModelVersionName)).ToList();
+    private List<(string name, string versionName, long modelId, double? weight)> _loras = photo.Models.Where(m => m.Model.Kind == "LORA").Select(lora => (lora.Model.ModelName, lora.Model.ModelVersionName, lora.Model.ModelId, lora.Weight)).ToList();
+    private List<(string name, string versionName)> _textualInversions = photo.Models.Where(m => m.Model.Kind == "TextualInversion").Select(ti => (ti.Model.ModelName, ti.Model.ModelVersionName)).ToList();
     private string _aDetailerVersion = photo.ADetailerVersion ?? string.Empty;
     private string _noEmphasisNorm = photo.NoEmphasisNorm ? "true" : string.Empty;
     private string _version = photo.Version ?? string.Empty;

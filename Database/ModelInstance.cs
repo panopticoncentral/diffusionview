@@ -2,7 +2,7 @@
 
 namespace DiffusionView.Database;
 
-public class LoraInstance
+public class ModelInstance
 {
     [MaxLength(260)]
     public string Path { get; set; }

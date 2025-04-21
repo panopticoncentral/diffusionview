@@ -44,8 +44,6 @@ public sealed class Photo
 
     public long Seed { get; set; }
 
-    public Model Model { get; set; }
-
     public int ClipSkip { get; set; }
 
     public double DenoisingStrength { get; set; }
@@ -97,9 +95,7 @@ public sealed class Photo
 
     public bool NoEmphasisNorm { get; set; }
 
-    public List<Model> TextualInversions { get; set; } = [];
-
-    public List<LoraInstance> Loras { get; set; } = [];
+    public List<ModelInstance> Models { get; set; } = [];
 
     [MaxLength(64)]
     public string Version { get; set; }
