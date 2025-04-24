@@ -863,6 +863,21 @@ public sealed partial class PhotoService : IDisposable
         await db.SaveChangesAsync();
     }
 
+    private async Task RemoveUnusedModels()
+    {
+        await using var db = new PhotoDatabase();
+        var usedModels = await db.Photos.SelectMany(p => p.Models.Select(m => m.ModelVersionId)).ToHashSetAsync();
+        var unusedModels = await db.Models.Where(m => !usedModels.Contains(m.ModelVersionId)).ToListAsync();
+        
+        foreach (var model in unusedModels)
+        {
+            ModelRemoved?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
+        }
+        
+        db.Models.RemoveRange(unusedModels);
+        await db.SaveChangesAsync();
+    }
+
     private async Task FileDeletedAsync(string path)
     {
         await using var db = new PhotoDatabase();
@@ -876,6 +891,7 @@ public sealed partial class PhotoService : IDisposable
         PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(existingPhoto));
 
         await db.SaveChangesAsync();
+        await RemoveUnusedModels();
     }
 
     private async Task FileRenamedAsync(string previousPath, string newPath)
@@ -1023,6 +1039,8 @@ public sealed partial class PhotoService : IDisposable
         }
 
         await db.SaveChangesAsync();
+        await RemoveUnusedModels();
+
     }
 
     /*
