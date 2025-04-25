@@ -749,8 +749,24 @@ public sealed partial class PhotoService : IDisposable
     {
         FolderRemoved?.Invoke(this, new FolderChangedEventArgs(path));
 
-        // If the folder is a root, remove it from the database
         await using var db = new PhotoDatabase();
+
+        var photosToRemove = await db.Photos
+            .Include(p => p.Models)
+            .ThenInclude(m => m.Model)
+            .Where(p => p.Path.StartsWith(path))
+            .ToListAsync();
+
+        foreach (var photo in photosToRemove)
+        {
+            PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
+        }
+
+        db.Photos.RemoveRange(photosToRemove);
+        await db.SaveChangesAsync();
+
+        await RemoveUnusedModels();
+        
         var folder = await db.Folders.FirstOrDefaultAsync(f => f.Path == path);
         if (folder != null)
         {

@@ -760,7 +760,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             for (versionIndex = 0; versionIndex < versions.Count; versionIndex++)
             {
                 var version = versions[versionIndex];
-                if (string.Compare((string)version.Content, e.ModelVersionName, StringComparison.InvariantCultureIgnoreCase) > 0) break;
+                if (string.Compare((string)version.Content, e.ModelVersionName, StringComparison.InvariantCultureIgnoreCase) == 0) break;
             }
 
             if (versionIndex == versions.Count) return;
