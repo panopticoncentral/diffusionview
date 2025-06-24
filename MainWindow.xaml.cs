@@ -697,7 +697,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             {
                 case SymbolIcon { Symbol: Symbol.Folder }
                     when item.Tag is string folderPath
-                         && Path.GetDirectoryName(e.Photo.Path) == folderPath:
+                         && Path.GetDirectoryName(e.Photo.Path)!.StartsWith(folderPath):
                 case SymbolIcon { Symbol: Symbol.Contact }
                     when item.Tag is long modelVersionId
                          && e.Photo.Models.FirstOrDefault(m => m.Model.Kind == "Checkpoint")?.ModelVersionId == modelVersionId:
