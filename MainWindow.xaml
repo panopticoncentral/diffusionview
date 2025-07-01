@@ -60,11 +60,13 @@
                        Margin="12,0,0,0"
                        Style="{StaticResource CaptionTextBlockStyle}"/>
 
-            <AutoSuggestBox Grid.Column="4" 
+            <AutoSuggestBox x:Name="SearchBox"
+                            Grid.Column="4" 
                             QueryIcon="Find"
                             PlaceholderText="Search"
                             VerticalAlignment="Center"
-                            MaxWidth="600"/>
+                            MaxWidth="600"
+                            TextChanged="SearchBox_TextChanged"/>
         </Grid>
 
         <!-- Navigation view -->

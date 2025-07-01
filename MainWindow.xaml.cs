@@ -23,7 +23,9 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 {
     private readonly PhotoService _photoService;
 
+    public readonly ObservableCollection<PhotoItem> AllPhotos = [];
     public readonly ObservableCollection<PhotoItem> Photos = [];
+    private string _searchText = string.Empty;
 
     public readonly ObservableCollection<NavigationViewItem> Folders = [];
     public readonly ObservableCollection<NavigationViewItem> Models = [];
@@ -233,6 +235,8 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     {
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
+
+        AllPhotos.CollectionChanged += AllPhotos_CollectionChanged;
 
         _photoService = new PhotoService();
         _photoService.FolderAdded += PhotoService_FolderAdded;
@@ -628,7 +632,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 } 
                 && folderPath == e.Path)
             {
-                Photos.Clear();
+                AllPhotos.Clear();
             }
 
             RemoveFolderItem(e.Path, Folders);
@@ -660,13 +664,13 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
-            var photo = Photos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
+            var photo = AllPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
             if (photo == null) return;
 
             if (FocusedItem == photo)
             {
                 var currentIndex = Photos.IndexOf(photo);
-                Photos.Remove(photo);
+                AllPhotos.Remove(photo);
 
                 if (Photos.Count > 0)
                 {
@@ -680,7 +684,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             }
             else
             {
-                Photos.Remove(photo);
+                AllPhotos.Remove(photo);
             }
         });
     }
@@ -698,12 +702,17 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 case SymbolIcon { Symbol: Symbol.Folder }
                     when item.Tag is string folderPath
                          && Path.GetDirectoryName(e.Photo.Path)!.StartsWith(folderPath):
+                {
+                    var photo = new PhotoItem(e.Photo);
+                    AllPhotos.Add(photo);
+                    break;
+                }
                 case SymbolIcon { Symbol: Symbol.Contact }
                     when item.Tag is long modelVersionId
                          && e.Photo.Models.FirstOrDefault(m => m.Model.Kind == "Checkpoint")?.ModelVersionId == modelVersionId:
                 {
                     var photo = new PhotoItem(e.Photo);
-                    Photos.Add(photo);
+                    AllPhotos.Add(photo);
                     break;
                 }
             }
@@ -772,7 +781,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 }
                 && modelVersionId == e.ModelVersionId)
             {
-                Photos.Clear();
+                AllPhotos.Clear();
             }
             
             if (versions.Count > 1)
@@ -877,12 +886,14 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         SelectedItems.Clear();
 
         FocusedItem = null;
-        Photos.Clear();
+        AllPhotos.Clear();
 
         foreach (var photo in photos)
         {
-            Photos.Add(photo);
+            AllPhotos.Add(photo);
         }
+
+        FilterPhotos();
 
         GridView.Visibility = Visibility.Visible;
         SinglePhotoView.Visibility = Visibility.Collapsed;
@@ -903,6 +914,46 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         await NavigateTo(() => PhotoService.GetPhotosByModelVersionIdAsync(modelVersionId));
     }
     
+    private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+        {
+            _searchText = sender.Text;
+            FilterPhotos();
+        }
+    }
+
+    private void AllPhotos_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        FilterPhotos();
+    }
+
+    private bool ShouldIncludePhoto(PhotoItem photo)
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+            return true;
+
+        var searchTerms = _searchText.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var prompt = photo.Prompt?.ToLowerInvariant() ?? string.Empty;
+        var negativePrompt = photo.NegativePrompt?.ToLowerInvariant() ?? string.Empty;
+        
+        return searchTerms.All(term => 
+            prompt.Contains(term) || negativePrompt.Contains(term));
+    }
+
+    private void FilterPhotos()
+    {
+        Photos.Clear();
+        
+        foreach (var photo in AllPhotos)
+        {
+            if (ShouldIncludePhoto(photo))
+            {
+                Photos.Add(photo);
+            }
+        }
+    }
+
     private async Task DeleteSelectedItemsAsync()
     {
         if (SelectedItems.Count == 0) return;
