@@ -47,12 +47,12 @@
                 <ColumnDefinition Width="0"/>
             </Grid.ColumnDefinitions>
 
-            <FontIcon Grid.Column="1"
-                      FontFamily="{StaticResource SymbolThemeFontFamily}"
-                      Glyph="&#xEB9F;"
-                      FontSize="16"
-                      VerticalAlignment="Center"
-                      Margin="12,0,0,0"/>
+            <ImageIcon Grid.Column="1"
+                       Source="ms-appx:///Assets/DiffusionView.png"
+                       Width="16"
+                       Height="16"
+                       VerticalAlignment="Center"
+                       Margin="12,0,0,0"/>
 
             <TextBlock Text="Diffusion View"
                        Grid.Column="2"
