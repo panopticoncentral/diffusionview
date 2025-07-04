@@ -236,6 +236,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
 
+        Title = "Diffusion View";
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "DiffusionView.ico"));
 
         Photos = new AdvancedCollectionView(AllPhotos, true)
