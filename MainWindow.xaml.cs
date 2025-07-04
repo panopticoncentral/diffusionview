@@ -1,3 +1,4 @@
+using DiffusionView.Database;
 using DiffusionView.Service;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -13,9 +14,8 @@ using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.System;
-using DiffusionView.Database;
+using CommunityToolkit.WinUI.Collections;
 using WinRT.Interop;
-using Microsoft.EntityFrameworkCore;
 
 namespace DiffusionView;
 
@@ -24,7 +24,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     private readonly PhotoService _photoService;
 
     public readonly ObservableCollection<PhotoItem> AllPhotos = [];
-    public readonly ObservableCollection<PhotoItem> Photos = [];
+    public readonly AdvancedCollectionView Photos;
     private string _searchText = string.Empty;
 
     public readonly ObservableCollection<NavigationViewItem> Folders = [];
@@ -236,7 +236,10 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
 
-        AllPhotos.CollectionChanged += AllPhotos_CollectionChanged;
+        Photos = new AdvancedCollectionView(AllPhotos, true)
+        {
+            Filter = item => ShouldIncludePhoto((PhotoItem)item)
+        };
 
         _photoService = new PhotoService();
         _photoService.FolderAdded += PhotoService_FolderAdded;
@@ -445,7 +448,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
             previousIndex = Photos.Count - 1;
         }
 
-        FocusedItem = Photos[previousIndex];
+        FocusedItem = (PhotoItem)Photos[previousIndex];
     }
 
     private void NextButton_Click(object sender, RoutedEventArgs e)
@@ -456,7 +459,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
 
         var nextIndex = (currentIndex + 1) % Photos.Count;
 
-        FocusedItem = Photos[nextIndex];
+        FocusedItem = (PhotoItem)Photos[nextIndex];
     }
 
     private void BackToGridButton_Click(object sender, RoutedEventArgs e)
@@ -675,7 +678,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
                 if (Photos.Count > 0)
                 {
                     var nextIndex = currentIndex >= Photos.Count ? 0 : currentIndex;
-                    FocusedItem = Photos[nextIndex];
+                    FocusedItem = (PhotoItem)Photos[nextIndex];
                 }
                 else
                 {
@@ -886,14 +889,14 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         SelectedItems.Clear();
 
         FocusedItem = null;
-        AllPhotos.Clear();
-
-        foreach (var photo in photos)
+        using (var scope = Photos.DeferRefresh())
         {
-            AllPhotos.Add(photo);
+            AllPhotos.Clear();
+            foreach (var photo in photos)
+            {
+                AllPhotos.Add(photo);
+            }
         }
-
-        FilterPhotos();
 
         GridView.Visibility = Visibility.Visible;
         SinglePhotoView.Visibility = Visibility.Collapsed;
@@ -916,16 +919,9 @@ public sealed partial class MainWindow : INotifyPropertyChanged
     
     private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
-        if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
-        {
-            _searchText = sender.Text;
-            FilterPhotos();
-        }
-    }
-
-    private void AllPhotos_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-    {
-        FilterPhotos();
+        if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+        _searchText = sender.Text;
+        Photos.RefreshFilter();
     }
 
     private bool ShouldIncludePhoto(PhotoItem photo)
@@ -939,19 +935,6 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         
         return searchTerms.All(term => 
             prompt.Contains(term) || negativePrompt.Contains(term));
-    }
-
-    private void FilterPhotos()
-    {
-        Photos.Clear();
-        
-        foreach (var photo in AllPhotos)
-        {
-            if (ShouldIncludePhoto(photo))
-            {
-                Photos.Add(photo);
-            }
-        }
     }
 
     private async Task DeleteSelectedItemsAsync()
