@@ -498,7 +498,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         }
     }
 
-    private void PhotoService_FolderAdded(object _, PhotoService.FolderChangedEventArgs e)
+    private void PhotoService_FolderAdded(object _, PhotoService.FolderCreatedEventArgs e)
     {
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(async void () =>
@@ -626,7 +626,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         InsertInCollectionInOrder(collection, item);
     }
 
-    private void PhotoService_FolderRemoved(object _, PhotoService.FolderChangedEventArgs e)
+    private void PhotoService_FolderRemoved(object _, PhotoService.FolderRemovedEventArgs e)
     {
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
@@ -665,12 +665,12 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         }
     }
 
-    private void PhotoService_PhotoRemoved(object _, PhotoService.PhotoChangedEventArgs e)
+    private void PhotoService_PhotoRemoved(object _, PhotoService.PhotoRemovedEventArgs e)
     {
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
         {
-            var photo = AllPhotos.FirstOrDefault(p => p.FilePath == e.Photo.Path);
+            var photo = AllPhotos.FirstOrDefault(p => p.FilePath == e.Path);
             if (photo == null) return;
 
             if (FocusedItem == photo)
@@ -695,7 +695,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         });
     }
 
-    private void PhotoService_PhotoAdded(object _, PhotoService.PhotoChangedEventArgs e)
+    private void PhotoService_PhotoAdded(object _, PhotoService.PhotoAddedEventArgs e)
     {
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
@@ -725,7 +725,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         });
     }
 
-    private void PhotoService_ModelAdded(object sender, PhotoService.ModelChangedEventArgs e)
+    private void PhotoService_ModelAdded(object sender, PhotoService.ModelAddedEventArgs e)
     {
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>
@@ -761,7 +761,7 @@ public sealed partial class MainWindow : INotifyPropertyChanged
         });
     }
 
-    private void PhotoService_ModelRemoved(object sender, PhotoService.ModelChangedEventArgs e)
+    private void PhotoService_ModelRemoved(object sender, PhotoService.ModelRemovedEventArgs e)
     {
         if (DispatcherQueue == null) return;
         DispatcherQueue.TryEnqueue(() =>

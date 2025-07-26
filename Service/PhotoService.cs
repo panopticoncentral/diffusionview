@@ -33,12 +33,12 @@ public sealed partial class PhotoService : IDisposable
 
     private bool _disposed;
 
-    public event EventHandler<FolderChangedEventArgs> FolderAdded;
-    public event EventHandler<FolderChangedEventArgs> FolderRemoved;
-    public event EventHandler<PhotoChangedEventArgs> PhotoAdded;
-    public event EventHandler<PhotoChangedEventArgs> PhotoRemoved;
-    public event EventHandler<ModelChangedEventArgs> ModelAdded;
-    public event EventHandler<ModelChangedEventArgs> ModelRemoved;
+    public event EventHandler<FolderCreatedEventArgs> FolderAdded;
+    public event EventHandler<FolderRemovedEventArgs> FolderRemoved;
+    public event EventHandler<PhotoAddedEventArgs> PhotoAdded;
+    public event EventHandler<PhotoRemovedEventArgs> PhotoRemoved;
+    public event EventHandler<ModelAddedEventArgs> ModelAdded;
+    public event EventHandler<ModelRemovedEventArgs> ModelRemoved;
     public event EventHandler<ScanProgressEventArgs> ScanProgress;
 
     public PhotoService()
@@ -62,7 +62,7 @@ public sealed partial class PhotoService : IDisposable
      * File watching
      */
 
-    private async Task ExtractPngMetadata(PhotoDatabase db, Stream stream, Photo photo)
+    private async Task ExtractPngMetadata(Dictionary<long, Model> models, Stream stream, Photo photo)
     {
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
@@ -81,10 +81,10 @@ public sealed partial class PhotoService : IDisposable
         if (textChunks.Count != 1) throw new FormatException("Expected exactly one textual data chunk");
 
         var raw = textChunks.First();
-        await ParseStableDiffusionMetadata(db, raw, photo);
+        await ParseStableDiffusionMetadata(models, raw, photo);
     }
 
-    private async Task ExtractJpegMetadata(PhotoDatabase db, Stream stream, Photo photo)
+    private async Task ExtractJpegMetadata(Dictionary<long, Model> models, Stream stream, Photo photo)
     {
         var directories = ImageMetadataReader.ReadMetadata(stream);
 
@@ -112,7 +112,7 @@ public sealed partial class PhotoService : IDisposable
 
         if (string.IsNullOrWhiteSpace(userComment)) throw new FormatException("Empty UserComment tag in Exif SubIFD");
 
-        await ParseStableDiffusionMetadata(db, userComment, photo);
+        await ParseStableDiffusionMetadata(models, userComment, photo);
     }
 
     private static string CleanUserComment(string comment)
@@ -199,7 +199,7 @@ public sealed partial class PhotoService : IDisposable
         return hashPairs;
     }
 
-    private async Task ProcessLoraHashes(PhotoDatabase db, string loraHashesString, Photo photo)
+    private async Task ProcessLoraHashes(Dictionary<long, Model> models, string loraHashesString, Photo photo)
     {
         if (string.IsNullOrWhiteSpace(loraHashesString)) return;
 
@@ -217,7 +217,7 @@ public sealed partial class PhotoService : IDisposable
             {
                 if (!long.TryParse(hash, NumberStyles.HexNumber, null, out var hashValue))
                     throw new FormatException("Bad hash");
-                var model = await FetchModelInformationByHashAsync(db, hashValue, "LORA");
+                var model = await FetchModelInformationByHashAsync(models, hashValue, "LORA");
                 AddModel(photo, model);
             }
         }
@@ -227,7 +227,7 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private async Task ProcessHashes(PhotoDatabase db, string hashString, Photo photo)
+    private async Task ProcessHashes(Dictionary<long, Model> models, string hashString, Photo photo)
     {
         if (string.IsNullOrWhiteSpace(hashString)) return;
 
@@ -250,12 +250,12 @@ public sealed partial class PhotoService : IDisposable
 
                 if (name.StartsWith("embed:"))
                 {
-                    var model = await FetchModelInformationByHashAsync(db, hashValue, "TextualInversion");
+                    var model = await FetchModelInformationByHashAsync(models, hashValue, "TextualInversion");
                     AddModel(photo, model);
                 }
                 else
                 {
-                    var model = await FetchModelInformationByHashAsync(db, hashValue, "LORA");
+                    var model = await FetchModelInformationByHashAsync(models, hashValue, "LORA");
                     AddModel(photo, model);
                 }
             }
@@ -266,7 +266,7 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private async Task ProcessTextualInversions(PhotoDatabase db, string tiHashesString, Photo photo)
+    private async Task ProcessTextualInversions(Dictionary<long, Model> models, string tiHashesString, Photo photo)
     {
         if (string.IsNullOrWhiteSpace(tiHashesString)) return;
 
@@ -288,7 +288,7 @@ public sealed partial class PhotoService : IDisposable
                     throw new FormatException("Invalid hash");
                 }
 
-                var model = await FetchModelInformationByHashAsync(db, hashValue, "TextualInversion");
+                var model = await FetchModelInformationByHashAsync(models, hashValue, "TextualInversion");
                 AddModel(photo, model);
             }
         }
@@ -298,7 +298,7 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private async Task ParseStableDiffusionMetadata(PhotoDatabase db, string raw, Photo photo)
+    private async Task ParseStableDiffusionMetadata(Dictionary<long, Model> models, string raw, Photo photo)
     {
         photo.Raw = raw;
 
@@ -403,7 +403,7 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "civitai resources":
-                    await ProcessCivitaiResources(db, photo, value);
+                    await ProcessCivitaiResources(models, photo, value);
                     break;
 
                 case "clip skip":
@@ -431,7 +431,7 @@ public sealed partial class PhotoService : IDisposable
                     {
                         photo.NoEmphasisNorm = true;
                     }
-                    else
+                    else if (value != "Original")
                     {
                         throw new FormatException("Unexpected emphasis");
                     }
@@ -439,7 +439,7 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "hashes":
-                    await ProcessHashes(db, value, photo);
+                    await ProcessHashes(models, value, photo);
                     break;
 
                 case "hires cfg scale":
@@ -469,7 +469,7 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "lora hashes":
-                    await ProcessLoraHashes(db, value, photo);
+                    await ProcessLoraHashes(models, value, photo);
                     break;
 
                 case "model":
@@ -482,7 +482,7 @@ public sealed partial class PhotoService : IDisposable
                     if (!long.TryParse(value, NumberStyles.HexNumber, null, out var modelHash))
                         throw new FormatException("Invalid hex model hash");
 
-                    var model = await FetchModelInformationByHashAsync(db, modelHash, "Checkpoint");
+                    var model = await FetchModelInformationByHashAsync(models, modelHash, "Checkpoint");
                     AddModel(photo, model);
                     break;
 
@@ -521,7 +521,7 @@ public sealed partial class PhotoService : IDisposable
                     break;
 
                 case "ti hashes":
-                    await ProcessTextualInversions(db, value, photo);
+                    await ProcessTextualInversions(models, value, photo);
                     break;
 
                 case "vae":
@@ -555,7 +555,7 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private async Task ProcessCivitaiResources(PhotoDatabase db, Photo photo, string value)
+    private async Task ProcessCivitaiResources(Dictionary<long, Model> models, Photo photo, string value)
     {
         var elements = JsonSerializer.Deserialize<List<JsonElement>>(value);
 
@@ -567,7 +567,7 @@ public sealed partial class PhotoService : IDisposable
             {
                 case "checkpoint":
                 {
-                    var model = await FetchModelInformationByVersionIdAsync(db,
+                    var model = await FetchModelInformationByVersionIdAsync(models,
                         element.GetProperty("modelVersionId").GetInt32(),
                         "Checkpoint");
 
@@ -577,7 +577,7 @@ public sealed partial class PhotoService : IDisposable
 
                 case "lora":
                 {
-                    var model = await FetchModelInformationByVersionIdAsync(db,
+                    var model = await FetchModelInformationByVersionIdAsync(models,
                         element.GetProperty("modelVersionId").GetInt32(),
                         "LORA");
 
@@ -594,7 +594,7 @@ public sealed partial class PhotoService : IDisposable
 
                 case "embed":
                 {
-                    var model = await FetchModelInformationByVersionIdAsync(db,
+                    var model = await FetchModelInformationByVersionIdAsync(models,
                         element.GetProperty("modelVersionId").GetInt32(),
                         "TextualInversion");
 
@@ -604,7 +604,7 @@ public sealed partial class PhotoService : IDisposable
 
                 case "vae":
                 {
-                    var model = await FetchModelInformationByVersionIdAsync(db,
+                    var model = await FetchModelInformationByVersionIdAsync(models,
                         element.GetProperty("modelVersionId").GetInt32(),
                         "");
 
@@ -617,7 +617,7 @@ public sealed partial class PhotoService : IDisposable
 
                 default:
                 {
-                    var model = await FetchModelInformationByVersionIdAsync(db,
+                    var model = await FetchModelInformationByVersionIdAsync(models,
                         element.GetProperty("modelVersionId").GetInt32(),
                         "");
 
@@ -650,36 +650,62 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private async Task<Model> GetOrCreateModel(PhotoDatabase db, long modelVersionId, string modelVersionName,
+    private async Task<Model> GetOrCreateModel(Dictionary<long, Model> models, long modelVersionId,
+        string modelVersionName,
         long modelId, string modelName, string kind)
     {
-        var model = await db.Models.FirstOrDefaultAsync(m => m.ModelVersionId == modelVersionId);
-        if (model != null) return model;
-        model = new Model
+        Model model;
+
+        lock (models)
         {
-            ModelVersionId = modelVersionId,
-            ModelVersionName = modelVersionName,
-            ModelId = modelId,
-            ModelName = modelName,
-            Kind = kind
-        };
-        db.Models.Add(model);
+            if (models.TryGetValue(modelVersionId, out model))
+            {
+                return model;
+            }
+
+            model = new Model
+            {
+                ModelVersionId = modelVersionId,
+                ModelVersionName = modelVersionName,
+                ModelId = modelId,
+                ModelName = modelName,
+                Kind = kind
+            };
+
+            models[modelVersionId] = model;
+        }
+
         if (kind == "Checkpoint")
         {
             ModelAdded?.Invoke(this,
-                new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
+                new ModelAddedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
         }
-
-        await db.SaveChangesAsync();
 
         return model;
     }
 
-    private async Task<Model> FetchModelInformationAsync(PhotoDatabase db, string url, string kind)
+    private async Task<Model> FetchModelInformationAsync(Dictionary<long, Model> models, string url, string kind)
     {
         var client = new HttpClient();
-        var response = await client.GetAsync(url);
-        if (!response.IsSuccessStatusCode)
+        HttpResponseMessage response = null;
+        var retryCount = 0;
+
+        while (retryCount < 10)
+        {
+            try
+            {
+                response = await client.GetAsync(url);
+            }
+            catch (TaskCanceledException)
+            {
+                retryCount++;
+                continue;
+            }
+
+            break;
+        }
+
+        if (response is not { IsSuccessStatusCode: true })
         {
             return null;
         }
@@ -700,7 +726,7 @@ public sealed partial class PhotoService : IDisposable
                 return null;
             }
 
-            return await GetOrCreateModel(db, modelVersionId, modelVersionName, modelId, modelName, modelKind);
+            return await GetOrCreateModel(models, modelVersionId, modelVersionName, modelId, modelName, modelKind);
         }
         catch (Exception)
         {
@@ -710,16 +736,15 @@ public sealed partial class PhotoService : IDisposable
         return null;
     }
 
-    private async Task<Model> FetchModelInformationByHashAsync(PhotoDatabase db, long modelHash, string kind)
+    private async Task<Model> FetchModelInformationByHashAsync(Dictionary<long, Model> models, long modelHash, string kind)
     {
-        return await FetchModelInformationAsync(db,
+        return await FetchModelInformationAsync(models,
             $"https://civitai.com/api/v1/model-versions/by-hash/{modelHash:X10}", kind);
     }
 
-
-    private async Task<Model> FetchModelInformationByVersionIdAsync(PhotoDatabase db, int modelVersionId, string kind)
+    private async Task<Model> FetchModelInformationByVersionIdAsync(Dictionary<long, Model> models, int modelVersionId, string kind)
     {
-        return await FetchModelInformationAsync(db, $"https://civitai.com/api/v1/model-versions/{modelVersionId}",
+        return await FetchModelInformationAsync(models, $"https://civitai.com/api/v1/model-versions/{modelVersionId}",
             kind);
     }
 
@@ -740,16 +765,27 @@ public sealed partial class PhotoService : IDisposable
         photo.ThumbnailData = image.ToByteArray();
     }
 
+    private async Task RemoveUnusedModels(PhotoDatabase db)
+    {
+        var usedModels = await db.Photos.SelectMany(p => p.Models.Select(m => m.ModelVersionId)).ToHashSetAsync();
+        var unusedModels = await db.Models.Where(m => !usedModels.Contains(m.ModelVersionId)).ToListAsync();
+
+        foreach (var model in unusedModels)
+        {
+            ModelRemoved?.Invoke(this, new ModelRemovedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
+        }
+
+        db.Models.RemoveRange(unusedModels);
+    }
+    
     private void DirectoryCreated(string path)
     {
-        FolderAdded?.Invoke(this, new FolderChangedEventArgs(path));
+        FolderAdded?.Invoke(this, new FolderCreatedEventArgs(path));
     }
 
-    private async Task DirectoryDeletedAsync(string path)
+    private async Task DirectoryDeletedAsync(PhotoDatabase db, string path)
     {
-        FolderRemoved?.Invoke(this, new FolderChangedEventArgs(path));
-
-        await using var db = new PhotoDatabase();
+        FolderRemoved?.Invoke(this, new FolderRemovedEventArgs(path));
 
         var photosToRemove = await db.Photos
             .Include(p => p.Models)
@@ -759,19 +795,17 @@ public sealed partial class PhotoService : IDisposable
 
         foreach (var photo in photosToRemove)
         {
-            PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
+            PhotoRemoved?.Invoke(this, new PhotoRemovedEventArgs(photo.Path));
         }
 
         db.Photos.RemoveRange(photosToRemove);
-        await db.SaveChangesAsync();
 
-        await RemoveUnusedModels();
+        await RemoveUnusedModels(db);
         
         var folder = await db.Folders.FirstOrDefaultAsync(f => f.Path == path);
         if (folder != null)
         {
             db.Folders.Remove(folder);
-            await db.SaveChangesAsync();
         }
 
         if (_watchers.ContainsKey(path))
@@ -781,10 +815,8 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    private async Task DirectoryRenamedAsync(string previousPath, string newPath)
+    private async Task DirectoryRenamedAsync(PhotoDatabase db, string previousPath, string newPath)
     {
-        await using var db = new PhotoDatabase();
-
         var folder = await db.Folders.FirstOrDefaultAsync(f => f.Path == previousPath);
         if (folder != null)
         {
@@ -797,37 +829,21 @@ public sealed partial class PhotoService : IDisposable
             photo.Path = photo.Path.Replace(previousPath, newPath, StringComparison.CurrentCultureIgnoreCase);
         }
 
-        await db.SaveChangesAsync();
-
-        FolderRemoved?.Invoke(this, new FolderChangedEventArgs(previousPath));
-        FolderAdded?.Invoke(this, new FolderChangedEventArgs(newPath));
+        FolderRemoved?.Invoke(this, new FolderRemovedEventArgs(previousPath));
+        FolderAdded?.Invoke(this, new FolderCreatedEventArgs(newPath));
     }
 
-    private async Task FileCreatedAsync(string path)
+    private async Task<Photo> FileCreatedAsync(string path, Dictionary<long, Model> models, Photo existingPhoto = null)
     {
-        await using var db = new PhotoDatabase();
-        var parentFolder = db.Folders.FirstOrDefault(f => path.StartsWith(f.Path));
-        if (parentFolder == null) return;
-
         var file = await StorageFile.GetFileFromPathAsync(path);
         var props = await file.GetBasicPropertiesAsync();
         var imageProps = await file.Properties.GetImagePropertiesAsync();
 
-        var photo = await db.Photos
-            .Include(p => p.Models)
-            .ThenInclude(l => l.Model)
-            .FirstOrDefaultAsync(p => p.Path == path);
-        var isNew = photo == null;
-
-        if (isNew)
+        var photo = existingPhoto ?? new Photo
         {
-            photo = new Photo
-            {
-                Path = path,
-                Name = file.Name
-            };
-            db.Photos.Add(photo);
-        }
+            Path = path,
+            Name = file.Name
+        };
 
         photo.DateTaken = imageProps.DateTaken.DateTime;
         photo.FileSize = props.Size;
@@ -843,11 +859,11 @@ public sealed partial class PhotoService : IDisposable
             switch (fileType)
             {
                 case FileType.Png:
-                    await ExtractPngMetadata(db, stream, photo);
+                    await ExtractPngMetadata(models, stream, photo);
                     await LoadScaledImageAsync(file, photo, 400);
                     break;
                 case FileType.Jpeg:
-                    await ExtractJpegMetadata(db, stream, photo);
+                    await ExtractJpegMetadata(models, stream, photo);
                     await LoadScaledImageAsync(file, photo, 400);
                     break;
                 default:
@@ -865,64 +881,41 @@ public sealed partial class PhotoService : IDisposable
 
         if (photo.Models.All(m => m.Model.Kind != "Checkpoint"))
         {
-            var model = await FetchModelInformationByVersionIdAsync(db, 0, "Checkpoint");
+            var model = await FetchModelInformationByVersionIdAsync(models, 0, "Checkpoint");
             AddModel(photo, model);
         }
 
-        if (!isNew)
+        if (existingPhoto != null)
         {
-            PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
+            PhotoRemoved?.Invoke(this, new PhotoRemovedEventArgs(path));
         }
 
-        PhotoAdded?.Invoke(this, new PhotoChangedEventArgs(photo));
+        PhotoAdded?.Invoke(this, new PhotoAddedEventArgs(photo));
 
-        await db.SaveChangesAsync();
+        return existingPhoto == null ? photo : null;
     }
 
-    private async Task RemoveUnusedModels()
+    private async Task FileDeletedAsync(PhotoDatabase db, string path)
     {
-        await using var db = new PhotoDatabase();
-        var usedModels = await db.Photos.SelectMany(p => p.Models.Select(m => m.ModelVersionId)).ToHashSetAsync();
-        var unusedModels = await db.Models.Where(m => !usedModels.Contains(m.ModelVersionId)).ToListAsync();
-        
-        foreach (var model in unusedModels)
-        {
-            ModelRemoved?.Invoke(this, new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
-        }
-        
-        db.Models.RemoveRange(unusedModels);
-        await db.SaveChangesAsync();
-    }
-
-    private async Task FileDeletedAsync(string path)
-    {
-        await using var db = new PhotoDatabase();
-        var existingPhoto = await db.Photos
-            .Include(p => p.Models)
-            .ThenInclude(m => m.Model)
-            .FirstOrDefaultAsync(p => p.Path == path);
+        var existingPhoto = await db.Photos.FirstOrDefaultAsync(p => p.Path == path);
         if (existingPhoto == null) return;
 
         db.Photos.Remove(existingPhoto);
-        PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(existingPhoto));
+        PhotoRemoved?.Invoke(this, new PhotoRemovedEventArgs(path));
 
-        await db.SaveChangesAsync();
-        await RemoveUnusedModels();
+        await RemoveUnusedModels(db);
     }
 
-    private async Task FileRenamedAsync(string previousPath, string newPath)
+    private async Task FileRenamedAsync(PhotoDatabase db, string previousPath, string newPath)
     {
-        await using var db = new PhotoDatabase();
-
         // If the photo is in the database, update the path
         var photo = await db.Photos.FirstOrDefaultAsync(p => p.Path == previousPath);
         if (photo != null)
         {
-            PhotoRemoved?.Invoke(this, new PhotoChangedEventArgs(photo));
+            PhotoRemoved?.Invoke(this, new PhotoRemovedEventArgs(previousPath));
             photo.Path = newPath;
-            await db.SaveChangesAsync();
 
-            PhotoAdded?.Invoke(this, new PhotoChangedEventArgs(photo));
+            PhotoAdded?.Invoke(this, new PhotoAddedEventArgs(photo));
         }
     }
 
@@ -933,14 +926,63 @@ public sealed partial class PhotoService : IDisposable
         var watcher = new RootWatcher(path);
 
         watcher.DirectoryCreated += (_, e) => DirectoryCreated(e.Path);
-        watcher.DirectoryDeleted += async (_, e) => await DirectoryDeletedAsync(e.Path);
-        watcher.DirectoryRenamed += async (_, e) => await DirectoryRenamedAsync(e.PreviousPath, e.NewPath);
+        watcher.DirectoryDeleted += async (_, e) =>
+        {
+            await using var db = new PhotoDatabase();
+            await DirectoryDeletedAsync(db, e.Path);
+            await db.SaveChangesAsync();
+        };
+        watcher.DirectoryRenamed += async (_, e) =>
+        {
+            await using var db = new PhotoDatabase();
+            await DirectoryRenamedAsync(db, e.PreviousPath, e.NewPath);
+            await db.SaveChangesAsync();
+
+        };
 
         // CONSIDER: Ignoring file changes for now
 
-        watcher.FileCreated += async (_, e) => await FileCreatedAsync(e.Path);
-        watcher.FileDeleted += async (_, e) => await FileDeletedAsync(e.Path);
-        watcher.FileRenamed += async (_, e) => await FileRenamedAsync(e.PreviousPath, e.NewPath);
+        watcher.FileCreated += async (_, e) =>
+        {
+            await using var db = new PhotoDatabase();
+
+            var parentFolder = db.Folders.FirstOrDefault(f => path.StartsWith(f.Path));
+            if (parentFolder == null) return;
+ 
+            var existingPhoto = await db.Photos
+                    .Include(p => p.Models)
+                    .ThenInclude(l => l.Model)
+                    .FirstOrDefaultAsync(p => p.Path == path);
+
+            var models = await db.Models.ToDictionaryAsync(m => m.ModelVersionId);
+
+            var photo = await FileCreatedAsync(e.Path, models, existingPhoto);
+            
+            if (photo != null)
+            {
+                db.Photos.Add(photo);
+            }
+
+            foreach (var model in models.Values.Where(model => !db.Models.Contains(model)))
+            {
+                db.Models.Add(model);
+            }
+
+            await db.SaveChangesAsync();
+
+        };
+        watcher.FileDeleted += async (_, e) =>
+        {
+            await using var db = new PhotoDatabase();
+            await FileDeletedAsync(db, e.Path);
+            await db.SaveChangesAsync();
+        };
+        watcher.FileRenamed += async (_, e) =>
+        {
+            await using var db = new PhotoDatabase();
+            await FileRenamedAsync(db, e.PreviousPath, e.NewPath);
+            await db.SaveChangesAsync();
+        };
 
         _watchers.TryAdd(path, watcher);
     }
@@ -949,49 +991,102 @@ public sealed partial class PhotoService : IDisposable
      * Folder scanning
      */
 
+    private static async Task<(List<string> created, List<string>deleted)> GetNewAndDeletedFiles(string path, CancellationToken cancellationToken)
+    {
+        await using var db = new PhotoDatabase();
+
+        var existingPhotos = await db.Photos
+            .Where(p => p.Path.StartsWith(path))
+            .Select(p => p.Path)
+            .ToHashSetAsync(cancellationToken);
+
+        var folder = await StorageFolder.GetFolderFromPathAsync(path);
+        var query = folder.CreateFileQueryWithOptions(
+            new QueryOptions(CommonFileQuery.OrderByName, [".png", ".jpg"])
+                { FolderDepth = FolderDepth.Deep });
+
+        var files = (await query.GetFilesAsync()).Select(f => f.Path).ToList();
+
+        var createdFiles = files.Where(file => !existingPhotos.Contains(file)).ToList();
+        var deletedFiles = existingPhotos.Where(file => !files.Contains(file)).ToList();
+        return (createdFiles, deletedFiles);
+    }
+
+    private static async Task<Dictionary<long, Model>> GetExistingModels(CancellationToken cancellationToken)
+    {
+        await using var db = new PhotoDatabase();
+        return await db.Models.ToDictionaryAsync(m => m.ModelVersionId, cancellationToken);
+    }
+
     private async Task ProcessScanQueueAsync(CancellationToken cancellationToken)
     {
         try
         {
             await foreach (var path in _scanQueue.Reader.ReadAllAsync(cancellationToken))
             {
-                await using var db = new PhotoDatabase();
-
-                var existingPhotos = await db.Photos
-                    .Where(p => p.Path.StartsWith(path))
-                    .Select(p => p.Path)
-                    .ToHashSetAsync(cancellationToken);
-
-                var folder = await StorageFolder.GetFolderFromPathAsync(path);
-                var query = folder.CreateFileQueryWithOptions(
-                    new QueryOptions(CommonFileQuery.OrderByName, [".png", ".jpg"])
-                        { FolderDepth = FolderDepth.Deep });
-
-                var files = (await query.GetFilesAsync()).Select(f => f.Path).ToList();
                 var processedFiles = 0;
+                var workerCount = Environment.ProcessorCount;
+                var tasks = new List<Task<List<Photo>>>();
+                var (createdFiles, deletedFiles) = await GetNewAndDeletedFiles(path, cancellationToken);
+                var models = await GetExistingModels(cancellationToken);
+                var existingModels = new HashSet<long>(models.Keys);
 
-                foreach (var file in files.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
+                for (var i = 0; i < workerCount; i++)
                 {
-                    try
+                    var workerId = i;
+                    var workerTask = Task.Run(async () =>
                     {
-                        if (!existingPhotos.Remove(file))
+                        var photos = new List<Photo>();
+                        for (var fileIndex = workerId; fileIndex < createdFiles.Count; fileIndex += workerCount)
                         {
-                            await FileCreatedAsync(file);
+                            if (cancellationToken.IsCancellationRequested) return photos;
+                            
+                            try
+                            {
+                                var file = createdFiles[fileIndex];
+                                var photo = await FileCreatedAsync(file, models);
+                                if (photo != null)
+                                {
+                                    photos.Add(photo);
+                                }
+                                var current = Interlocked.Increment(ref processedFiles);
+                                ScanProgress?.Invoke(this, new ScanProgressEventArgs(path, current, createdFiles.Count));
+                            }
+                            catch (Exception)
+                            {
+                                // Log error but continue processing queue
+                            }
                         }
 
-                        processedFiles++;
-                        ScanProgress?.Invoke(this, new ScanProgressEventArgs(path, processedFiles, files.Count));
-                    }
-                    catch (Exception)
-                    {
-                        // Log error but continue processing queue
-                    }
+                        return photos;
+                    }, cancellationToken);
+                    
+                    tasks.Add(workerTask);
                 }
 
-                foreach (var file in existingPhotos)
+                await Task.WhenAll(tasks);
+                ScanProgress?.Invoke(this, new ScanProgressEventArgs(path, createdFiles.Count, createdFiles.Count));
+
+                await using var db = new PhotoDatabase();
+
+                foreach (var task in tasks.Where(t => t.Result.Count > 0))
                 {
-                    await FileDeletedAsync(file);
+                    db.Photos.AddRange(task.Result);
                 }
+
+                foreach (var model in models.Values.Where(model => !existingModels.Contains(model.ModelVersionId)))
+                {
+                    db.Models.Add(model);
+                }
+
+                foreach (var file in deletedFiles)
+                {
+                    await FileDeletedAsync(db, file);
+                }
+
+                await RemoveUnusedModels(db);
+
+                await db.SaveChangesAsync(cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -1051,12 +1146,11 @@ public sealed partial class PhotoService : IDisposable
                      .ToListAsync())
         {
             ModelAdded?.Invoke(this,
-                new ModelChangedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
+                new ModelAddedEventArgs(model.ModelVersionId, model.ModelName, model.ModelVersionName));
         }
 
+        await RemoveUnusedModels(db);
         await db.SaveChangesAsync();
-        await RemoveUnusedModels();
-
     }
 
     /*
@@ -1081,7 +1175,7 @@ public sealed partial class PhotoService : IDisposable
             // The new folder is the parent of this folder, so remove it. We don't do a full
             // folder removal because the children will still be valid.
             db.Folders.Remove(folder);
-            FolderRemoved?.Invoke(this, new FolderChangedEventArgs(folder.Path));
+            FolderRemoved?.Invoke(this, new FolderRemovedEventArgs(folder.Path));
         }
 
         db.Folders.Add(new Folder { Path = newFolder.Path });
@@ -1097,7 +1191,7 @@ public sealed partial class PhotoService : IDisposable
 
     public static async Task<List<Photo>> GetPhotosForFolderAsync(string folderPath)
     {
-        var db = new PhotoDatabase();
+        await using var db = new PhotoDatabase();
         return await db.Photos
             .Where(p => p.Path.StartsWith(folderPath))
             .Include(p => p.Models)
@@ -1108,7 +1202,7 @@ public sealed partial class PhotoService : IDisposable
 
     public static async Task<List<Photo>> GetPhotosByModelVersionIdAsync(long modelVersionId)
     {
-        var db = new PhotoDatabase();
+        await using var db = new PhotoDatabase();
         return await db.Photos
             .Include(p => p.Models)
             .ThenInclude(l => l.Model)
@@ -1205,21 +1299,38 @@ public sealed partial class PhotoService : IDisposable
         }
     }
 
-    public class FolderChangedEventArgs(string path) : EventArgs
+    public class FolderCreatedEventArgs(string path) : EventArgs
     {
         public string Path { get; } = path;
     }
 
-    public class ModelChangedEventArgs(long modelVersionId, string modelName, string modelVersionName) : EventArgs
+    public class FolderRemovedEventArgs(string path) : EventArgs
+    {
+        public string Path { get; } = path;
+    }
+
+    public class ModelAddedEventArgs(long modelVersionId, string modelName, string modelVersionName) : EventArgs
     {
         public long ModelVersionId { get; } = modelVersionId;
         public string ModelName { get; } = modelName;
         public string ModelVersionName { get; } = modelVersionName;
     }
 
-    public sealed class PhotoChangedEventArgs(Photo photo) : EventArgs
+    public class ModelRemovedEventArgs(long modelVersionId, string modelName, string modelVersionName) : EventArgs
+    {
+        public long ModelVersionId { get; } = modelVersionId;
+        public string ModelName { get; } = modelName;
+        public string ModelVersionName { get; } = modelVersionName;
+    }
+
+    public sealed class PhotoAddedEventArgs(Photo photo) : EventArgs
     {
         public Photo Photo { get; } = photo;
+    }
+
+    public sealed class PhotoRemovedEventArgs(string path) : EventArgs
+    {
+          public string Path { get; } = path;
     }
 
     public class ScanProgressEventArgs(string path, int processedFiles, int totalFiles) : EventArgs
